@@ -1,0 +1,20 @@
+tasks:
+  - id: sup_research_and_write
+    prompt: "Research LangGraph vs MCP, then write a 3-bullet comparison."
+    expect_contains: ["langgraph"]
+
+  - id: sup_tool_delegation
+    prompt: "What is 144 / 12? Research this using your tools, then present the answer."
+    expect_contains: ["12"]
+
+  - id: sup_knowledge_lookup
+    prompt: "Search your knowledge docs for what agentflow is, then summarize it in 2 sentences."
+    expect_contains: ["agentflow"]
+
+  - id: sup_multi_step
+    prompt: "Research what RAG stands for and how it works, then write a brief explanation."
+    expect_contains: ["retrieval"]
+
+  - id: sup_simple_route
+    prompt: "Hello, what can you do?"
+    expect_contains: ["agent"]

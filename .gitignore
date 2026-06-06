@@ -1,0 +1,15 @@
+.env
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+dist/
+*.egg-info/
+.DS_Store
+eval/reports/
+runs/
+.runs/
+.chroma/
+TODO.md
+docs/INTERVIEW.md

@@ -1,0 +1,65 @@
+tasks:
+  # --- Math (3 tasks) ---
+  - id: math_basic
+    prompt: "Use the calculator to compute (48 / 6) + 15"
+    expect_contains: ["23"]
+
+  - id: math_compound
+    prompt: "Calculate (12 * 3) - (18 / 2) using the calculator"
+    expect_contains: ["27"]
+
+  - id: math_percentage
+    prompt: "What is 15% of 240? Use the calculator."
+    expect_contains: ["36"]
+
+  # --- Stub search / knowledge (4 tasks) ---
+  - id: stub_search_langgraph
+    prompt: "What is LangGraph? Use web_search if needed."
+    expect_contains: ["langgraph", "graph"]
+
+  - id: mcp_overview
+    prompt: "You must call web_search for 'MCP' first. Then explain Model Context Protocol in one paragraph for an interviewer."
+    expect_contains: ["mcp", "protocol"]
+
+  - id: rag_definition
+    prompt: "What is RAG and when would you use it?"
+    expect_contains: ["retrieval", "generation"]
+
+  - id: local_rag_agentflow
+    prompt: "What is agentflow? Search local knowledge docs."
+    expect_contains: ["agentflow", "langgraph"]
+
+  # --- Local knowledge docs (3 tasks) ---
+  - id: agentflow_stack
+    prompt: "What tech stack does agentflow use? Check local docs."
+    expect_contains: ["langgraph", "fastapi"]
+
+  - id: rag_notes_production
+    prompt: "According to local RAG notes, what do production RAG systems use for vector storage?"
+    expect_contains: ["pgvector", "pinecone"]
+
+  - id: agentflow_purpose
+    prompt: "What is the purpose of agentflow as described in the overview doc?"
+    expect_contains: ["portfolio", "agent"]
+
+  # --- Multi-step / reasoning (3 tasks) ---
+  - id: multi_step_calc_search
+    prompt: "First, use the calculator to compute 7 * 8. Then explain what that number means in the context of computing (use web_search)."
+    expect_contains: ["56"]
+
+  - id: compare_rag_mcp
+    prompt: "Compare RAG and MCP — what problem does each solve? Use tools if needed."
+    expect_contains: ["retrieval", "protocol"]
+
+  - id: agentflow_architecture
+    prompt: "Describe agentflow's architecture: what nodes does the graph have and how do they connect? Search local docs."
+    expect_contains: ["agent"]
+
+  # --- Edge cases (2 tasks) ---
+  - id: math_tool_call
+    prompt: "Use the calculator tool to compute 999 / 3"
+    expect_contains: ["333"]
+
+  - id: general_knowledge
+    prompt: "What is the capital of France? You can use any tool."
+    expect_contains: ["paris"]
