@@ -1,7 +1,5 @@
 # Agentflow
 
-![CI](https://github.com/0xrameshh/agentflow/actions/workflows/ci.yml/badge.svg)
-
 LangGraph-based agent runtime with regression evals, structured traces, vector RAG, and an MCP tool server.
 
 ## Features
@@ -98,6 +96,14 @@ Setup: [mcp/README.md](mcp/README.md)
 ## Stack
 
 Python · LangGraph · LangChain · ChromaDB · FastAPI · MCP SDK · uv
+
+## Development
+
+```bash
+uv sync --extra dev
+uv run pytest tests/
+uv run ruff check src/ tests/
+```
 
 ## License
 

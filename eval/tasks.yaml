@@ -18,7 +18,7 @@ tasks:
     expect_contains: ["langgraph", "graph"]
 
   - id: mcp_overview
-    prompt: "You must call web_search for 'MCP' first. Then explain Model Context Protocol in one paragraph for an interviewer."
+    prompt: "You must call web_search for 'MCP' first. Then explain Model Context Protocol in one paragraph."
     expect_contains: ["mcp", "protocol"]
 
   - id: rag_definition
