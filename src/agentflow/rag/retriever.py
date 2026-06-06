@@ -13,6 +13,8 @@ from pathlib import Path
 import chromadb
 from chromadb.config import Settings
 
+import agentflow.config  # noqa: F401 — loads .env via load_dotenv()
+
 CHROMA_DIR = os.getenv("AGENTFLOW_CHROMA_DIR", ".chroma")
 COLLECTION_NAME = os.getenv("AGENTFLOW_COLLECTION", "agentflow-docs")
 EMBEDDING_MODEL = os.getenv("AGENTFLOW_EMBEDDING_MODEL", "text-embedding-3-small")

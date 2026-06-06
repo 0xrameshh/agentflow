@@ -16,6 +16,8 @@ from pathlib import Path
 import chromadb
 from chromadb.config import Settings
 
+from agentflow.config import require_api_key  # loads .env via load_dotenv()
+
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
@@ -179,6 +181,8 @@ def ingest_directory(
 
 def main():
     import argparse
+
+    require_api_key()
 
     parser = argparse.ArgumentParser(description="Ingest markdown docs into ChromaDB")
     parser.add_argument("directory", help="Directory containing .md files")
