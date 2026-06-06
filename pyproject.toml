@@ -28,7 +28,8 @@ dev = [
 
 [project.scripts]
 agentflow-eval = "agentflow.eval.runner:main"
-agentflow-api = "agentflow.api.main:run"
+agentflow-api = "agentflow.api.main:run_server"
+agentflow-ingest = "agentflow.rag.ingest:main"
 
 [build-system]
 requires = ["hatchling"]

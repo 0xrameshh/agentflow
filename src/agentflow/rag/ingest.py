@@ -192,8 +192,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-# Allow running as module: python -m agentflow.rag.ingest
-def __main__():
-    main()

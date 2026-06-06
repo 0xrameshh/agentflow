@@ -34,10 +34,10 @@ Agentflow implements a two-tier RAG pipeline: **Chroma vector search** (primary)
 
 ```bash
 # Ingest sample docs into Chroma
-uv run python -m agentflow.rag.ingest data/sample
+uv run agentflow-ingest data/sample
 
 # Custom collection name
-uv run python -m agentflow.rag.ingest data/sample --collection mydocs
+uv run agentflow-ingest data/sample --collection mydocs
 ```
 
 ### Chunking strategy

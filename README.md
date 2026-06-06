@@ -13,7 +13,10 @@ LangGraph-based agent runtime with regression evals, structured traces, vector R
 
 ## Quick start
 
+Run these from the **agentflow** repo root (not the parent `personalprojects` folder):
+
 ```bash
+cd agentflow
 cp .env.example .env
 # Set OPENAI_API_KEY
 
@@ -26,7 +29,7 @@ uv run agentflow-api
 uv run agentflow-eval
 
 # Ingest docs for vector search (requires OPENAI_API_KEY)
-uv run python -m agentflow.rag.ingest data/sample
+uv run agentflow-ingest data/sample
 ```
 
 ## API examples
