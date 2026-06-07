@@ -144,6 +144,14 @@ class TestApiEndpoints:
         data = response.json()
         assert "answer" in data or "detail" in data
 
+    def test_run_support_stream_sse(self, client):
+        """POST /run/support/stream should return SSE content-type."""
+        with client.stream("POST", "/run/support/stream", json={"message": "test"}) as response:
+            assert response.status_code == 200
+            assert "text/event-stream" in response.headers.get("content-type", "")
+            chunks = list(response.iter_lines())
+        assert any(line.startswith("data: ") for line in chunks if line)
+
     def test_run_returns_answer(self, client):
         """POST /run should return JSON with answer field."""
         response = client.post("/run", json={"message": "test"})

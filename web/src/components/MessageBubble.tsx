@@ -8,9 +8,15 @@ interface MessageBubbleProps {
   role: "user" | "assistant";
   content: string;
   citations?: Citation[];
+  streaming?: boolean;
 }
 
-export default function MessageBubble({ role, content, citations }: MessageBubbleProps) {
+export default function MessageBubble({
+  role,
+  content,
+  citations,
+  streaming,
+}: MessageBubbleProps) {
   const isUser = role === "user";
 
   return (
@@ -35,10 +41,17 @@ export default function MessageBubble({ role, content, citations }: MessageBubbl
         }`}
       >
         <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-ul:my-1 prose-li:my-0.5 prose-code:px-1 prose-code:py-0.5 prose-code:bg-gray-100 dark:prose-code:bg-gray-700 prose-code:rounded prose-code:text-xs">
-          <ReactMarkdown>{content}</ReactMarkdown>
+          {content ? (
+            <ReactMarkdown>{content}</ReactMarkdown>
+          ) : streaming ? (
+            <span className="text-gray-400">…</span>
+          ) : null}
+          {streaming && content && (
+            <span className="inline-block w-2 h-4 ml-0.5 bg-blue-500 animate-pulse align-middle" />
+          )}
         </div>
 
-        {!isUser && citations && citations.length > 0 && (
+        {!isUser && !streaming && citations && citations.length > 0 && (
           <CitationChips citations={citations} />
         )}
       </div>

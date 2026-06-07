@@ -7,6 +7,7 @@ Endpoints:
 - POST /run — single agent run (returns answer)
 - POST /run/full — single agent run (returns answer + metadata)
 - POST /run/support — KB copilot (returns answer + citations)
+- POST /run/support/stream — KB copilot SSE stream (chunks + citations)
 - POST /run/supervisor — multi-agent supervisor run
 - POST /eval — run full eval suite and return report
 - GET /threads/{thread_id}/history — return message history
@@ -14,6 +15,8 @@ Endpoints:
 
 from __future__ import annotations
 
+import asyncio
+import json
 import os
 import re
 import time
@@ -60,6 +63,7 @@ def root() -> dict:
         "ui": "Run the Next.js app: cd web && bun dev → http://localhost:3000",
         "health": "/health",
         "chat": "POST /run/support",
+        "chat_stream": "POST /run/support/stream",
     }
 
 
@@ -222,6 +226,32 @@ def _extract_answer(state: dict) -> str:
     return (getattr(last, "content", None) or str(last)).strip()
 
 
+def _strip_inline_sources(text: str) -> str:
+    """Remove inline [source: ...] markers; citations are returned separately."""
+    cleaned = CITATION_PATTERN.sub("", text)
+    return re.sub(r"\n{3,}", "\n\n", cleaned).strip()
+
+
+def _format_sse(payload: dict) -> str:
+    return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
+
+
+def _execute_support_run(message: str, thread_id: str) -> tuple[dict, str, list[Citation], int]:
+    """Run the knowledge copilot graph and persist trace/history."""
+    started = time.perf_counter()
+    require_api_key()
+    state = run_agent_with_state(message, thread_id=thread_id)
+    answer = _strip_inline_sources(_extract_answer(state))
+    citations = _extract_citations(state)
+    latency_ms = int(round((time.perf_counter() - started) * 1000))
+
+    write_trace(state, thread_id=thread_id)
+    _store_thread_message(thread_id, "user", message)
+    _store_thread_message(thread_id, "assistant", answer)
+
+    return state, answer, citations, latency_ms
+
+
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
@@ -308,24 +338,12 @@ async def run_stream(request: RunRequest):
 
 @app.post("/run/support", response_model=SupportRunResponse)
 def run_support(request: RunRequest) -> SupportRunResponse:
-    """Run the knowledge copilot and return the answer with citations.
-
-    Uses the same research graph but returns structured citations
-    extracted from search_knowledge tool results.
-    """
+    """Run the knowledge copilot and return the answer with citations."""
     _check_rate_limit()
-    started = time.perf_counter()
     try:
-        require_api_key()
-        state = run_agent_with_state(request.message, thread_id=request.thread_id)
-        answer = _extract_answer(state)
-        citations = _extract_citations(state)
-        latency_ms = round((time.perf_counter() - started) * 1000, 0)
-
-        write_trace(state, thread_id=request.thread_id)
-        _store_thread_message(request.thread_id, "user", request.message)
-        _store_thread_message(request.thread_id, "assistant", answer)
-
+        state, answer, citations, latency_ms = _execute_support_run(
+            request.message, request.thread_id
+        )
         return SupportRunResponse(
             answer=answer,
             citations=citations,
@@ -333,10 +351,57 @@ def run_support(request: RunRequest) -> SupportRunResponse:
             run_id=state.get("run_id", ""),
             tool_call_count=state.get("tool_call_count", 0),
             revision_count=state.get("revision_count", 0),
-            latency_ms=int(latency_ms),
+            latency_ms=latency_ms,
         )
     except RuntimeError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.post("/run/support/stream")
+async def run_support_stream(request: RunRequest):
+    """SSE stream for the knowledge copilot.
+
+    Events (JSON in ``data:`` lines):
+    - ``{"type":"status","phase":"searching"}`` — agent is running
+    - ``{"type":"chunk","text":"..."}`` — answer text chunk
+    - ``{"type":"done","citations":[],"run_id":"","latency_ms":0,...}`` — final metadata
+    - ``{"type":"error","message":"..."}`` — on failure
+    """
+    _check_rate_limit()
+
+    async def event_generator():
+        try:
+            yield _format_sse({"type": "status", "phase": "searching"})
+
+            state, answer, citations, latency_ms = await asyncio.to_thread(
+                _execute_support_run, request.message, request.thread_id
+            )
+
+            chunk_size = 24
+            for i in range(0, len(answer), chunk_size):
+                yield _format_sse({"type": "chunk", "text": answer[i : i + chunk_size]})
+                await asyncio.sleep(0.012)
+
+            yield _format_sse(
+                {
+                    "type": "done",
+                    "answer": answer,
+                    "citations": [c.model_dump() for c in citations],
+                    "thread_id": request.thread_id,
+                    "run_id": state.get("run_id", ""),
+                    "tool_call_count": state.get("tool_call_count", 0),
+                    "revision_count": state.get("revision_count", 0),
+                    "latency_ms": latency_ms,
+                }
+            )
+        except RuntimeError as exc:
+            yield _format_sse({"type": "error", "message": str(exc)})
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @app.post("/run/supervisor", response_model=RunFullResponse)

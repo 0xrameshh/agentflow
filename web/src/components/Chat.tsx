@@ -3,12 +3,13 @@
 import { useState, useRef, useEffect } from "react";
 import MessageBubble from "./MessageBubble";
 import Composer from "./Composer";
-import { postSupport, getKbArticles, type Citation } from "@/lib/api";
+import { streamSupport, getKbArticles, type Citation } from "@/lib/api";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
   citations?: Citation[];
+  streaming?: boolean;
 }
 
 const EXAMPLE_PROMPTS = [
@@ -28,6 +29,7 @@ export default function Chat() {
     },
   ]);
   const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
   const [kbCount, setKbCount] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -43,41 +45,89 @@ export default function Chat() {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, status]);
 
   const handleSend = async (text: string) => {
-    setMessages((prev) => [...prev, { role: "user", content: text }]);
     setLoading(true);
+    setStatus("Searching knowledge base…");
     setError(null);
 
+    let assistantIndex = 0;
+    setMessages((prev) => {
+      const withUser = [...prev, { role: "user" as const, content: text }];
+      assistantIndex = withUser.length;
+      return [...withUser, { role: "assistant" as const, content: "", streaming: true }];
+    });
+
     try {
-      const data = await postSupport(text);
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: data.answer,
-          citations: data.citations,
+      await streamSupport(text, {
+        onStatus: (phase) => {
+          if (phase === "searching") {
+            setStatus("Searching knowledge base…");
+          }
         },
-      ]);
+        onChunk: (chunk) => {
+          setStatus(null);
+          setMessages((prev) => {
+            const next = [...prev];
+            const msg = next[assistantIndex];
+            if (!msg || msg.role !== "assistant") return prev;
+            next[assistantIndex] = {
+              ...msg,
+              content: msg.content + chunk,
+              streaming: true,
+            };
+            return next;
+          });
+        },
+        onDone: (data) => {
+          setStatus(null);
+          setMessages((prev) => {
+            const next = [...prev];
+            const msg = next[assistantIndex];
+            if (!msg || msg.role !== "assistant") return prev;
+            next[assistantIndex] = {
+              role: "assistant",
+              content: data.answer,
+              citations: data.citations,
+              streaming: false,
+            };
+            return next;
+          });
+        },
+        onError: (message) => {
+          setError(message);
+          setMessages((prev) => {
+            const next = [...prev];
+            next[assistantIndex] = {
+              role: "assistant",
+              content: `**Error:** ${message}`,
+              streaming: false,
+            };
+            return next;
+          });
+        },
+      });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Connection error";
       setError(msg);
-      setMessages((prev) => [
-        ...prev,
-        {
+      setMessages((prev) => {
+        const next = [...prev];
+        next[assistantIndex] = {
           role: "assistant",
           content: `**Error:** ${msg}\n\nMake sure the API server is running on \`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8081"}\`.`,
-        },
-      ]);
+          streaming: false,
+        };
+        return next;
+      });
     }
 
+    setStatus(null);
     setLoading(false);
   };
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
       <header className="border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 py-3">
         <div className="max-w-3xl mx-auto">
           <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">
@@ -86,18 +136,30 @@ export default function Chat() {
           <p className="text-xs text-gray-500 dark:text-gray-400">
             Cited answers from your documents
             {kbCount !== null ? ` · ${kbCount} documents indexed` : ""}
+            {" · "}
+            <span className="text-blue-600 dark:text-blue-400">streaming</span>
           </p>
         </div>
       </header>
 
-      {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4">
         <div className="max-w-3xl mx-auto space-y-4">
           {messages.map((msg, i) => (
-            <MessageBubble key={i} role={msg.role} content={msg.content} citations={msg.citations} />
+            <MessageBubble
+              key={i}
+              role={msg.role}
+              content={msg.content}
+              citations={msg.citations}
+              streaming={msg.streaming}
+            />
           ))}
 
-          {/* Example prompts on first message */}
+          {status && (
+            <p className="text-xs text-gray-500 dark:text-gray-400 pl-11 animate-pulse">
+              {status}
+            </p>
+          )}
+
           {messages.length === 1 && (
             <div className="flex flex-wrap gap-2 mt-2">
               {EXAMPLE_PROMPTS.map((prompt) => (
@@ -123,12 +185,11 @@ export default function Chat() {
         </div>
       </div>
 
-      {/* Composer */}
       <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 py-3">
         <div className="max-w-3xl mx-auto">
           <Composer onSend={handleSend} disabled={loading} />
           <p className="text-xs text-gray-400 dark:text-gray-500 mt-1.5 text-center">
-            Answers are based on the indexed knowledge base. Verify critical information against original documents.
+            Answers stream from the indexed knowledge base. Verify critical information against originals.
           </p>
         </div>
       </div>

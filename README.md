@@ -9,7 +9,7 @@
 - **Multi-format RAG** — ingest `.md`, `.txt`, `.pdf` into Chroma (keyword fallback)
 - **LangGraph agent** — research loop with structured critic that enforces KB grounding
 - **Cited answers** — `answer` + `citations[{source, snippet, file_type, page}]`
-- **Next.js chat UI** — `web/` app (TypeScript, Tailwind, react-markdown)
+- **Next.js chat UI** — `web/` app with **SSE streaming** responses (TypeScript, Tailwind)
 - **Eval harness** — YAML regression suites with pass rate and latency metrics
 - **FastAPI backend** — `/run/support`, streaming, supervisor graph, MCP server
 
@@ -72,6 +72,11 @@ uv run agentflow-eval --tasks eval/tasks-support-kb.yaml
 curl -s http://localhost:8081/health
 
 curl -s http://localhost:8081/run/support \
+  -H 'Content-Type: application/json' \
+  -d '{"message":"What is the meal expense limit per day?"}'
+
+# Streaming (SSE) — same copilot, chunked response + citations in final event
+curl -N http://localhost:8081/run/support/stream \
   -H 'Content-Type: application/json' \
   -d '{"message":"What is the meal expense limit per day?"}'
 
