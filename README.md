@@ -1,8 +1,6 @@
 # Agentflow — Knowledge Copilot
 
-> **Problem:** Teams store knowledge in PDFs, wikis, and text files. Finding answers means opening many documents — slow and inconsistent. Generic chatbots hallucinate policy.
->
-> **Solution:** Point at a folder of documents; ingest into Chroma; ask questions via a LangGraph agent that returns **cited answers**. Support SaaS (`data/tenants/support-saas/`) is one example tenant, not the product.
+Document Q&A over a local folder of PDFs, markdown, and text. Ingest into Chroma, ask questions through a LangGraph agent, get answers with source citations. Next.js chat UI on the front, FastAPI + eval harness on the back.
 
 ## Features
 
@@ -83,13 +81,58 @@ curl -N http://localhost:8081/run/support/stream \
 curl -s http://localhost:8081/kb/articles
 ```
 
-## Architecture
+## System design
 
-```
-Next.js (web/) :3000  →  FastAPI :8081  →  LangGraph agent  →  Chroma RAG
+```mermaid
+flowchart TB
+    subgraph client ["Client"]
+        UI["Next.js chat UI<br/>web/ :3000"]
+    end
+
+    subgraph api ["API layer"]
+        FastAPI["FastAPI :8081"]
+        Stream["POST /run/support/stream<br/>SSE"]
+        Support["POST /run/support"]
+    end
+
+    subgraph agent ["LangGraph agent"]
+        Init["init_run"]
+        LLM["agent node"]
+        Tools["run_tools"]
+        Critic["structured_critic"]
+        Init --> LLM
+        LLM -->|tool calls| Tools --> LLM
+        LLM -->|answer draft| Critic
+        Critic -->|score &lt; 4| LLM
+        Critic -->|score ≥ 4| Done["final answer"]
+    end
+
+    subgraph rag ["RAG"]
+        Ingest["agentflow-ingest<br/>.md .txt .pdf"]
+        Chroma[("ChromaDB<br/>.chroma/")]
+        Search["search_knowledge"]
+        Ingest --> Chroma
+        Search --> Chroma
+    end
+
+    subgraph eval ["Quality"]
+        YAML["eval/tasks-*.yaml"]
+        Runner["agentflow-eval"]
+        YAML --> Runner
+        Runner --> agent
+    end
+
+    UI -->|fetch SSE| Stream
+    UI -->|optional JSON| Support
+    Stream --> FastAPI
+    Support --> FastAPI
+    FastAPI --> Init
+    Tools --> Search
+    Done -->|answer + citations| FastAPI
+    FastAPI -->|chunks + done event| UI
 ```
 
-### Research graph
+### Research graph (detail)
 
 ```mermaid
 flowchart LR
@@ -102,7 +145,7 @@ flowchart LR
     Critic -->|score ≥ 4| End
 ```
 
-Details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · [docs/RAG.md](docs/RAG.md)
+More: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · [docs/RAG.md](docs/RAG.md)
 
 ## Sample knowledge base
 
