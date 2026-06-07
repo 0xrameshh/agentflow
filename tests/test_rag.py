@@ -1,8 +1,10 @@
-"""Tests for RAG module — chunking, ingestion, retrieval (no API key needed for chunking)."""
+"""Tests for RAG module — chunking, loaders, ingestion (no API key needed for chunking/loading)."""
 
 from __future__ import annotations
 
-from agentflow.rag.ingest import _chunk_text, _doc_id, _load_documents
+
+from agentflow.rag.ingest import _chunk_text, _doc_id
+from agentflow.rag.loaders import load_directory, load_path
 
 
 class TestChunking:
@@ -29,28 +31,51 @@ class TestChunking:
     def test_overlap_applied(self):
         text = "A" * 100 + "\n\n" + "B" * 100 + "\n\n" + "C" * 100
         chunks = _chunk_text(text, chunk_size=80, overlap=20)
-        # Overlap chunks should start with "..."
         overlap_chunks = [c for c in chunks if c.startswith("...")]
         assert len(overlap_chunks) > 0
 
     def test_large_single_paragraph(self):
-        # A single paragraph larger than chunk_size should be split by sentences
-        text = "First sentence here. " * 50  # ~650 chars
+        text = "First sentence here. " * 50
         chunks = _chunk_text(text, chunk_size=200, overlap=0)
         assert len(chunks) >= 2
 
 
-class TestDocLoading:
-    def test_loads_sample_docs(self):
-        docs = _load_documents("data/sample")
-        assert len(docs) >= 2
-        names = [name for name, _ in docs]
-        assert "agentflow-overview.md" in names
-        assert "rag-notes.md" in names
+class TestLoaders:
+    def test_load_markdown(self):
+        chunks = load_path("data/knowledge/policies/expense-policy.md")
+        assert len(chunks) == 1
+        assert chunks[0].file_type == "md"
+        assert chunks[0].source == "expense-policy.md"
+        assert "expense" in chunks[0].text.lower()
+
+    def test_load_text(self):
+        chunks = load_path("data/knowledge/notes/product-launch-checklist.txt")
+        assert len(chunks) == 1
+        assert chunks[0].file_type == "txt"
+        assert "launch" in chunks[0].text.lower()
+
+    def test_load_pdf(self):
+        chunks = load_path("data/knowledge/manuals/onboarding-manual.pdf")
+        assert len(chunks) >= 1
+        assert chunks[0].file_type == "pdf"
+        assert chunks[0].page is not None
+
+    def test_load_directory_non_recursive(self):
+        chunks = load_directory("data/knowledge/notes", recursive=False)
+        assert len(chunks) >= 2  # at least 2 .txt files
+        assert all(c.file_type == "txt" for c in chunks)
+
+    def test_load_directory_recursive(self):
+        chunks = load_directory("data/knowledge", recursive=True)
+        # Should find .md, .txt, .pdf from all subdirs
+        types = {c.file_type for c in chunks}
+        assert "md" in types
+        assert "txt" in types
+        assert "pdf" in types
 
     def test_empty_dir(self):
-        docs = _load_documents("/nonexistent/path")
-        assert docs == []
+        chunks = load_directory("/nonexistent/path")
+        assert chunks == []
 
 
 class TestDocId:

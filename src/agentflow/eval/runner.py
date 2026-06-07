@@ -71,7 +71,18 @@ def run_eval_suite(tasks_path: Path | None = None) -> EvalReport:
 
 
 def main() -> None:
-    report = run_eval_suite()
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Run the agentflow eval suite")
+    parser.add_argument(
+        "--tasks",
+        default=str(DEFAULT_TASKS),
+        help=f"Path to tasks YAML file (default: {DEFAULT_TASKS})",
+    )
+    args = parser.parse_args()
+
+    tasks_path = Path(args.tasks)
+    report = run_eval_suite(tasks_path=tasks_path)
     out_dir = Path("eval/reports")
     out_dir.mkdir(parents=True, exist_ok=True)
     stamp = time.strftime("%Y%m%d-%H%M%S")

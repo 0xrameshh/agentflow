@@ -1,20 +1,27 @@
-"""Agentflow FastAPI application.
+"""Agentflow FastAPI application — Knowledge Copilot.
+
+Ingests documents (Markdown, PDF, TXT), answers questions with cited sources.
 
 Endpoints:
 - GET /health — liveness check
 - POST /run — single agent run (returns answer)
 - POST /run/full — single agent run (returns answer + metadata)
+- POST /run/support — KB copilot (returns answer + citations)
 - POST /run/supervisor — multi-agent supervisor run
 - POST /eval — run full eval suite and return report
-- GET /threads/{thread_id}/history — return message history from checkpoint
+- GET /threads/{thread_id}/history — return message history
 """
 
 from __future__ import annotations
 
+import os
+import re
 import time
 from collections import defaultdict
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
@@ -25,10 +32,35 @@ from agentflow.graph.supervisor import run_supervisor_with_state
 from agentflow.graph.tracing import write_trace
 
 app = FastAPI(
-    title="Agentflow",
-    description="LangGraph research agent with structured critic, tracing, and eval harness",
-    version="0.1.0",
+    title="Agentflow — Knowledge Copilot",
+    description="Document Q&A with cited sources. Ingest markdown, PDFs, and text; get cited answers via LangGraph.",
+    version="0.2.0",
 )
+
+# ---------------------------------------------------------------------------
+# CORS — allow Next.js dev server
+# ---------------------------------------------------------------------------
+
+CORS_ORIGINS = os.getenv("AGENTFLOW_CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000")
+_origins = [o.strip() for o in CORS_ORIGINS.split(",") if o.strip()]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_origins,
+    allow_methods=["GET", "POST"],
+    allow_headers=["*"],
+)
+
+@app.get("/")
+def root() -> dict:
+    """API root — chat UI lives in Next.js (web/)."""
+    return {
+        "name": "Agentflow — Knowledge Copilot",
+        "version": "0.2.0",
+        "ui": "Run the Next.js app: cd web && bun dev → http://localhost:3000",
+        "health": "/health",
+        "chat": "POST /run/support",
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -55,6 +87,23 @@ class RunFullResponse(BaseModel):
     revision_count: int
     trace_file: str | None = None
     error: str | None = None
+
+
+class Citation(BaseModel):
+    source: str
+    snippet: str
+    file_type: str | None = None
+    page: int | None = None
+
+
+class SupportRunResponse(BaseModel):
+    answer: str
+    citations: list[Citation]
+    thread_id: str
+    run_id: str
+    tool_call_count: int
+    revision_count: int
+    latency_ms: int
 
 
 class ThreadHistoryResponse(BaseModel):
@@ -101,6 +150,79 @@ def _store_thread_message(thread_id: str, role: str, content: str) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Citation extraction
+# ---------------------------------------------------------------------------
+
+# Matches [source: filename.ext] or [source: filename.pdf p.N]
+CITATION_PATTERN = re.compile(r"\[source:\s*([^\]]+?)(?:\s+p\.(\d+))?\]")
+
+
+def _extract_citations(state: dict) -> list[Citation]:
+    """Walk tool messages for search_knowledge results and extract citations."""
+    seen: set[str] = set()
+    citations: list[Citation] = []
+
+    for msg in state.get("messages", []):
+        msg_type = getattr(msg, "type", None)
+        if msg_type != "tool" or getattr(msg, "name", None) != "search_knowledge":
+            continue
+
+        content = getattr(msg, "content", "") or ""
+
+        # Find [source: ...] markers
+        for match in CITATION_PATTERN.finditer(content):
+            source = match.group(1).strip()
+            page_str = match.group(2)
+            page = int(page_str) if page_str else None
+
+            key = f"{source}:p{page}" if page else source
+            if key in seen:
+                continue
+            seen.add(key)
+
+            # Extract snippet following this source marker
+            idx = content.find(f"[source: {source}]" if not page else match.group(0))
+            snippet = ""
+            if idx >= 0:
+                snippet_start = idx + len(match.group(0))
+                next_marker = content.find("[source:", snippet_start)
+                if next_marker >= 0:
+                    snippet = content[snippet_start:next_marker].strip()
+                else:
+                    snippet = content[snippet_start:].strip()
+                snippet = snippet.replace("\n", " ")[:200].strip()
+
+            # Determine file_type from extension
+            file_type = None
+            if "." in source:
+                ext = source.rsplit(".", 1)[1].lower()
+                if ext in ("md", "txt", "pdf"):
+                    file_type = ext
+
+            citations.append(
+                Citation(
+                    source=source,
+                    snippet=snippet or f"Cited from {source}",
+                    file_type=file_type,
+                    page=page,
+                )
+            )
+
+    return citations
+
+
+def _extract_answer(state: dict) -> str:
+    """Extract the final assistant answer from state messages."""
+    for msg in reversed(state["messages"]):
+        if hasattr(msg, "tool_calls") and not getattr(msg, "tool_calls", None):
+            content = getattr(msg, "content", "")
+            if content:
+                return content.strip()
+    last = state["messages"][-1]
+    return (getattr(last, "content", None) or str(last)).strip()
+
+
+# ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
 
@@ -116,20 +238,14 @@ def run(request: RunRequest) -> RunResponse:
     try:
         require_api_key()
         state = run_agent_with_state(request.message, thread_id=request.thread_id)
-        answer = ""
-        for msg in reversed(state["messages"]):
-            if hasattr(msg, "tool_calls") and not getattr(msg, "tool_calls", None):
-                content = getattr(msg, "content", "")
-                if content:
-                    answer = content
-                    break
+        answer = _extract_answer(state)
 
         write_trace(state, thread_id=request.thread_id)
         _store_thread_message(request.thread_id, "user", request.message)
-        _store_thread_message(request.thread_id, "assistant", answer.strip())
+        _store_thread_message(request.thread_id, "assistant", answer)
 
         return RunResponse(
-            answer=answer.strip(),
+            answer=answer,
             thread_id=request.thread_id,
             run_id=state.get("run_id", ""),
         )
@@ -143,20 +259,14 @@ def run_full(request: RunRequest) -> RunFullResponse:
     try:
         require_api_key()
         state = run_agent_with_state(request.message, thread_id=request.thread_id)
-        answer = ""
-        for msg in reversed(state["messages"]):
-            if hasattr(msg, "tool_calls") and not getattr(msg, "tool_calls", None):
-                content = getattr(msg, "content", "")
-                if content:
-                    answer = content
-                    break
+        answer = _extract_answer(state)
 
         trace_path = write_trace(state, thread_id=request.thread_id)
         _store_thread_message(request.thread_id, "user", request.message)
-        _store_thread_message(request.thread_id, "assistant", answer.strip())
+        _store_thread_message(request.thread_id, "assistant", answer)
 
         return RunFullResponse(
-            answer=answer.strip(),
+            answer=answer,
             thread_id=request.thread_id,
             run_id=state.get("run_id", ""),
             tool_call_count=state.get("tool_call_count", 0),
@@ -176,22 +286,13 @@ async def run_stream(request: RunRequest):
     async def event_generator():
         try:
             require_api_key()
-            # For streaming, we'll run the agent and stream the result
-            # In a production setup, you'd use agraph.astream()
             state = run_agent_with_state(request.message, thread_id=request.thread_id)
-            answer = ""
-            for msg in reversed(state["messages"]):
-                if hasattr(msg, "tool_calls") and not getattr(msg, "tool_calls", None):
-                    content = getattr(msg, "content", "")
-                    if content:
-                        answer = content
-                        break
+            answer = _extract_answer(state)
 
             write_trace(state, thread_id=request.thread_id)
             _store_thread_message(request.thread_id, "user", request.message)
-            _store_thread_message(request.thread_id, "assistant", answer.strip())
+            _store_thread_message(request.thread_id, "assistant", answer)
 
-            # Stream answer in chunks
             chunk_size = 50
             for i in range(0, len(answer), chunk_size):
                 chunk = answer[i : i + chunk_size]
@@ -205,6 +306,39 @@ async def run_stream(request: RunRequest):
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 
+@app.post("/run/support", response_model=SupportRunResponse)
+def run_support(request: RunRequest) -> SupportRunResponse:
+    """Run the knowledge copilot and return the answer with citations.
+
+    Uses the same research graph but returns structured citations
+    extracted from search_knowledge tool results.
+    """
+    _check_rate_limit()
+    started = time.perf_counter()
+    try:
+        require_api_key()
+        state = run_agent_with_state(request.message, thread_id=request.thread_id)
+        answer = _extract_answer(state)
+        citations = _extract_citations(state)
+        latency_ms = round((time.perf_counter() - started) * 1000, 0)
+
+        write_trace(state, thread_id=request.thread_id)
+        _store_thread_message(request.thread_id, "user", request.message)
+        _store_thread_message(request.thread_id, "assistant", answer)
+
+        return SupportRunResponse(
+            answer=answer,
+            citations=citations,
+            thread_id=request.thread_id,
+            run_id=state.get("run_id", ""),
+            tool_call_count=state.get("tool_call_count", 0),
+            revision_count=state.get("revision_count", 0),
+            latency_ms=int(latency_ms),
+        )
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
 @app.post("/run/supervisor", response_model=RunFullResponse)
 def run_supervisor_endpoint(request: RunRequest) -> RunFullResponse:
     """Run the multi-agent supervisor graph."""
@@ -212,20 +346,14 @@ def run_supervisor_endpoint(request: RunRequest) -> RunFullResponse:
     try:
         require_api_key()
         state = run_supervisor_with_state(request.message, thread_id=request.thread_id)
-        answer = ""
-        for msg in reversed(state["messages"]):
-            if hasattr(msg, "tool_calls") and not getattr(msg, "tool_calls", None):
-                content = getattr(msg, "content", "")
-                if content:
-                    answer = content
-                    break
+        answer = _extract_answer(state)
 
         trace_path = write_trace(state, thread_id=request.thread_id)
         _store_thread_message(request.thread_id, "user", request.message)
-        _store_thread_message(request.thread_id, "assistant", answer.strip())
+        _store_thread_message(request.thread_id, "assistant", answer)
 
         return RunFullResponse(
-            answer=answer.strip(),
+            answer=answer,
             thread_id=request.thread_id,
             run_id=state.get("run_id", ""),
             tool_call_count=state.get("tool_call_count", 0),
@@ -255,10 +383,29 @@ def eval_suite() -> dict:
     return report.to_dict()
 
 
+@app.get("/kb/articles")
+def kb_articles() -> dict:
+    """List available knowledge base documents."""
+    from agentflow.config import SAMPLE_DOCS_DIR
+
+    kb_dir = Path(SAMPLE_DOCS_DIR)
+    articles: list[str] = []
+    if kb_dir.exists():
+        for path in sorted(kb_dir.rglob("*")):
+            if path.is_file() and path.suffix.lower() in (".md", ".txt", ".pdf"):
+                articles.append(path.name)
+    return {"articles": articles, "count": len(articles)}
+
+
 def run_server() -> None:
+    import os
+
     import uvicorn
 
-    uvicorn.run("agentflow.api.main:app", host="0.0.0.0", port=8080, reload=False)
+    import agentflow.config  # noqa: F401 — loads .env
+
+    port = int(os.getenv("AGENTFLOW_PORT", "8081"))
+    uvicorn.run("agentflow.api.main:app", host="0.0.0.0", port=port, reload=False)
 
 
 if __name__ == "__main__":

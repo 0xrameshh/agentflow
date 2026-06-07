@@ -1,0 +1,74 @@
+# FlowDesk Support KB — Eval tasks
+# Each task tests the agent's ability to answer from the knowledge base
+# with correct citations and policy accuracy.
+
+tasks:
+  # ── Billing / Refunds (4 tasks) ──
+  - id: support_refund_30_days
+    prompt: "Can a customer get a refund after 45 days on a first-time Pro subscription?"
+    expect_contains: ["30", "day", "refund"]
+
+  - id: support_refund_annual
+    prompt: "A customer on an annual plan wants a refund after 60 days. What's the policy?"
+    expect_contains: ["pro-rated", "refund", "fee"]
+
+  - id: support_billing_downgrade
+    prompt: "How does downgrading from Pro to Free work in terms of billing?"
+    expect_contains: ["next", "billing", "downgrade"]
+
+  - id: support_invoice_access
+    prompt: "Where can a customer find their invoices?"
+    expect_contains: ["invoice", "billing", "history"]
+
+  # ── Login / Account (4 tasks) ──
+  - id: support_password_reset
+    prompt: "A user can't reset their password — what are the first steps?"
+    expect_contains: ["forgot", "reset", "email"]
+
+  - id: support_2fa_lockout
+    prompt: "Customer lost their 2FA device and has no recovery codes. What do they do?"
+    expect_contains: ["recovery", "2fa", "email", "disable"]
+
+  - id: support_account_deletion
+    prompt: "What happens when a user deletes their FlowDesk account?"
+    expect_contains: ["30", "day", "grace", "delet"]
+
+  - id: support_change_email
+    prompt: "How do I change my email address on my FlowDesk account?"
+    expect_contains: ["verification", "email", "settings"]
+
+  # ── Integrations (2 tasks) ──
+  - id: support_slack_webhook
+    prompt: "Slack webhook is failing for a FlowDesk user. What should they check?"
+    expect_contains: ["webhook", "channel", "test"]
+
+  - id: support_api_keys
+    prompt: "How do I generate an API key in FlowDesk for automation?"
+    expect_contains: ["api", "key", "settings", "integrations"]
+
+  # ── Escalation / SLA (2 tasks) ──
+  - id: support_p1_sla
+    prompt: "What is the response SLA for a P1 critical issue on a Team plan?"
+    expect_contains: ["1", "hour", "p1", "critical"]
+
+  - id: support_when_escalate
+    prompt: "When should a support agent escalate a ticket to Tier-2?"
+    expect_contains: ["data", "loss", "security", "escalat", "tier"]
+
+  # ── Edge cases / grounding (3 tasks) ──
+  - id: support_not_in_kb
+    prompt: "What is the refund policy for FlowDesk's WhatsApp integration?"
+    expect_contains: ["not", "find"]
+
+  - id: support_known_issue
+    prompt: "What is a known workaround for mobile sync delays in FlowDesk?"
+    expect_contains: ["refresh", "pull", "sync"]
+
+  - id: support_gdpr_export
+    prompt: "How long does it take to export data larger than 10GB from FlowDesk?"
+    expect_contains: ["7", "day", "export"]
+
+  # ── Additional grounding checks ──
+  - id: support_citations_required
+    prompt: "What plans does FlowDesk offer and what are their prices?"
+    expect_contains: ["free", "pro", "team"]

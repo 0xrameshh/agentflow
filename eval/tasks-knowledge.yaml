@@ -1,0 +1,57 @@
+# Knowledge Copilot — Domain-agnostic eval tasks
+# Tests the agent's ability to answer from mixed-format knowledge base
+# (.md, .txt, .pdf) with correct citations.
+
+tasks:
+  # ── Markdown policy (3 tasks) ──
+  - id: expense_meal_limit
+    prompt: "How much can employees claim per day for meals according to the expense policy?"
+    expect_contains: ["75", "meal", "expense"]
+
+  - id: remote_work_eligibility
+    prompt: "How many days per week can full-time employees work remotely?"
+    expect_contains: ["4", "day", "remote"]
+
+  - id: expense_submit_deadline
+    prompt: "How many days do employees have to submit an expense report?"
+    expect_contains: ["30", "day", "expense"]
+
+  # ── TXT notes (3 tasks) ──
+  - id: incident_sev1_response
+    prompt: "What is the response time for a SEV1 incident?"
+    expect_contains: ["15", "minute", "sev1"]
+
+  - id: launch_window
+    prompt: "What deployment window is recommended for product launches?"
+    expect_contains: ["tuesday", "10", "am", "2", "pm"]
+
+  - id: post_mortem_timeline
+    prompt: "How many business days after an incident should the post-mortem review happen?"
+    expect_contains: ["5", "business", "day"]
+
+  # ── PDF content (2 tasks) ──
+  - id: pdf_laptop_cycle
+    prompt: "What is the laptop refresh cycle according to the onboarding manual?"
+    expect_contains: ["3", "year"]
+
+  - id: pdf_data_classification
+    prompt: "What are the data classification levels mentioned in the onboarding manual?"
+    expect_contains: ["public", "internal", "confidential"]
+
+  # ── Cross-file (2 tasks) ──
+  - id: password_policy
+    prompt: "What are the password requirements mentioned in the company documents?"
+    expect_contains: ["12", "characters", "90", "day"]
+
+  - id: benefits_policy
+    prompt: "What benefits are available to employees according to the knowledge base?"
+    expect_contains: ["401", "health", "pto"]
+
+  # ── Edge cases / grounding (2 tasks) ──
+  - id: not_in_kb
+    prompt: "What is the company policy on pet insurance?"
+    expect_contains: ["no", "find"]
+
+  - id: security_requirements
+    prompt: "What security measures are required for employees?"
+    expect_contains: ["2fa", "vpn", "password"]

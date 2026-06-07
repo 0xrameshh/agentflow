@@ -1,5 +1,44 @@
 # Architecture
 
+## Product: Knowledge Copilot
+
+**Agentflow** is an industry-agnostic document Q&A system. Users point at a folder of files (Markdown, PDF, text); the system ingests, indexes, and answers with cited sources.
+
+**Example tenant:** `data/tenants/support-saas/` — fictional FlowDesk support articles for SaaS support evals. The primary demo KB is `data/knowledge/` (mixed formats).
+
+**Flow:**
+1. User asks a question in the Next.js chat UI (`web/`, port 3000)
+2. Frontend calls `POST /run/support` on FastAPI (port 8081)
+3. `search_knowledge` queries Chroma (or keyword fallback) against ingested docs
+4. LLM synthesizes answer with citations (`[source: file.pdf p.3]`)
+5. Structured critic scores grounding, completeness, conciseness
+6. API returns `{ answer, citations[], latency_ms }`
+7. UI renders markdown + expandable citation chips
+
+## System layers
+
+```
+┌─────────────────────────────────────────┐
+│  web/  Next.js 15  (localhost:3000)    │
+│  Chat.tsx → lib/api.ts                  │
+└──────────────────┬──────────────────────┘
+                   │  CORS + fetch
+┌──────────────────▼──────────────────────┐
+│  FastAPI  (agentflow.api.main)  :8081   │
+│  POST /run/support, GET /kb/articles    │
+└──────────────────┬──────────────────────┘
+                   │
+┌──────────────────▼──────────────────────┐
+│  LangGraph StateGraph                     │
+│  init_run → agent → tools → critic        │
+└──────────────────┬──────────────────────┘
+                   │
+┌──────────────────▼──────────────────────┐
+│  RAG: loaders → ingest → Chroma           │
+│  .md .txt .pdf  (data/knowledge/)         │
+└─────────────────────────────────────────┘
+```
+
 ## Graph design
 
 Agentflow uses a custom **LangGraph** `StateGraph` over `MessagesState`:
@@ -23,91 +62,69 @@ START → init_run → agent → [run_tools | structured_critic] → END
 
 ```python
 class AgentflowState(MessagesState):
-    run_id: str                           # unique run identifier
-    tool_call_count: int                  # loop guard (max 8)
-    revision_count: int                   # loop guard (max 3)
-    error: str | None                     # terminal error
-    trace: Annotated[list[dict], add]     # append-only trace events
-    critic_scores: Annotated[list[CriticScore], add]  # append-only scores
+    run_id: str
+    tool_call_count: int
+    revision_count: int
+    error: str | None
+    trace: Annotated[list[dict], add]
+    critic_scores: Annotated[list[CriticScore], add]
 ```
-
-### Routing
-
-1. `START → init_run → agent`
-2. `agent → run_tools` when model emitted tool calls
-3. `agent → structured_critic` when no tool calls
-4. `run_tools → agent`
-5. `structured_critic → agent` if score < 4 (revision), else `END`
 
 ### Loop guards
 
-- **Max tool iterations:** 8 — prevents infinite tool-calling loops
-- **Max revisions:** 3 — prevents critic from endlessly requesting revisions
+- **Max tool iterations:** 8
+- **Max revisions:** 3
 
 ## Structured critic
 
-The critic node calls the LLM with a system prompt asking for JSON scoring:
-
-```json
-{"grounded": 4, "complete": 3, "concise": 4, "overall": 3, "feedback": "Missing specific examples"}
-```
-
-If `overall >= 4`, the answer passes. Otherwise, the feedback is injected as a `REVISE:` message.
+The critic scores answers before returning. If `overall < 4`, feedback is injected as a `REVISE:` message and the agent loops.
 
 ## Tracing
 
-Every run writes a JSON file to `runs/<run_id>.json`:
-
-```json
-{
-  "run_id": "a1b2c3d4e5f6",
-  "thread_id": "default",
-  "timestamp": 1717670000.0,
-  "question": "What is RAG?",
-  "answer_snippet": "RAG stands for Retrieval-Augmented Generation...",
-  "tool_call_count": 2,
-  "revision_count": 0,
-  "critic_scores": [{"grounded": 4, "complete": 4, "concise": 4, "overall": 4, "feedback": ""}],
-  "trace_events": [
-    {"node": "init_run", "ts": 1717670000.0, "run_id": "a1b2c3d4e5f6"},
-    {"node": "call_model", "ts": 1717670000.1, "tokens_estimate": 45},
-    {"node": "run_tools", "ts": 1717670000.3, "tools_called": ["search_knowledge"]},
-    {"node": "structured_critic", "ts": 1717670000.5, "score": 4, "feedback": ""}
-  ]
-}
-```
+Every run writes `runs/<run_id>.json` with trace events, critic scores, and tool call counts.
 
 ## RAG pipeline
 
-See [RAG.md](RAG.md) for the full pipeline.
+See [RAG.md](RAG.md) for loaders, ingest, and citation format.
 
 ## Tools
 
 | Tool | Purpose |
 |------|---------|
+| `search_knowledge` | Chroma vector search + keyword fallback; primary for KB questions |
 | `calculator` | Deterministic math for eval tasks |
-| `search_knowledge` | Chroma vector search with keyword fallback, source citations |
-| `web_search` | Stub index for LangGraph / MCP / RAG topics |
+| `web_search` | Stub index (supplementary) |
 
 ## Eval harness
 
-`eval/tasks.yaml` defines 15 golden prompts across math / knowledge / search / multi-step / edge cases.
+| File | Purpose |
+|------|---------|
+| `eval/tasks-knowledge.yaml` | 12 domain-agnostic tasks (md, txt, pdf, grounding) |
+| `eval/tasks-support-kb.yaml` | 16 support-SaaS tenant tasks |
+| `eval/tasks.yaml` | Original generic graph tasks |
 
-`uv run agentflow-eval` runs all tasks, prints JSON, and writes `eval/reports/report-*.json`.
+```bash
+uv run agentflow-eval --tasks eval/tasks-knowledge.yaml
+```
 
-Metrics: pass rate, per-task latency, token estimates.
+Target: ≥ 85% pass rate with `gpt-4o-mini`.
 
 ## API layer
 
-FastAPI wraps:
-
-- `POST /run` — single agent run (returns answer)
-- `POST /run/full` — single agent run (returns answer + metadata + trace file)
-- `POST /eval` — run full eval suite
+| Endpoint | Description |
+|----------|-------------|
+| `GET /` | API info JSON (UI is Next.js at `:3000`) |
+| `GET /health` | Liveness |
+| `POST /run/support` | Knowledge copilot — answer + citations |
+| `POST /run`, `/run/full`, `/run/stream` | Agent runs |
+| `POST /run/supervisor` | Multi-agent graph |
+| `GET /kb/articles` | List indexed documents |
+| `POST /eval` | Run eval suite |
+| `GET /threads/{id}/history` | Thread history (in-memory) |
 
 ## Design notes
 
-- **Custom graph** — explicit nodes and routing instead of a single prebuilt ReAct helper.
-- **Structured critic** — scores answers before returning; triggers revision when quality is low.
-- **Append-only trace** — each node appends events for post-run debugging.
-- **Chroma + keyword fallback** — vector search when ingested; keyword match when Chroma is unavailable.
+- **Custom graph** — explicit nodes and routing, not a single ReAct helper
+- **Structured critic** — quality gate before returning answers
+- **Multi-format loaders** — `src/agentflow/rag/loaders.py` for md/txt/pdf
+- **Split frontend** — Next.js for UI; Python for agent logic

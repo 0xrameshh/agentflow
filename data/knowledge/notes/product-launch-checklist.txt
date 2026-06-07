@@ -1,0 +1,26 @@
+Product Launch Checklist
+
+Pre-Launch (T-30 days):
+- Finalize feature scope with product team
+- Complete QA regression suite (all tests must pass at 100%)
+- Security audit by external vendor
+- Legal review of Terms of Service and Privacy Policy
+- Prepare marketing materials (blog post, social media, email campaign)
+- Set up monitoring dashboards (Datadog / Grafana)
+- Configure CI/CD pipeline for production deployment
+- Load testing: target 10,000 concurrent users with < 500ms p95 latency
+
+Launch Week:
+- Deployment window: Tuesday 10:00 AM – 2:00 PM UTC (avoid Mondays/Fridays)
+- Rollout: 10% canary → 50% → 100% over 48 hours
+- On-call rotation: 3 engineers (primary + secondary + backup)
+- Monitor error rates: < 0.1% 5xx errors as target, > 0.5% triggers rollback
+- Customer communication: in-app banner + email announcement on launch day
+- Support team briefed with known issues FAQ
+
+Post-Launch (T+30 days):
+- Retrospective meeting with engineering, product, support
+- Review metrics against launch targets
+- Collect user feedback via NPS survey
+- Prioritize bug fixes and quick wins from feedback
+- Celebrate with team!

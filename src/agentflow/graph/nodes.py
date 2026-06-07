@@ -22,21 +22,30 @@ from agentflow.tools import ALL_TOOLS
 MAX_TOOL_ITERATIONS = 8
 MAX_REVISIONS = 3
 
-SYSTEM_PROMPT = """You are a research assistant for software engineering topics.
+SYSTEM_PROMPT = """You are a knowledge copilot that answers questions based on an ingested document knowledge base. Users ask about policies, procedures, documentation, and other information stored in the KB.
 
-Use tools when you need facts from local docs, stub web search, or math.
-Prefer search_knowledge for project-specific questions.
-After using tools, give a concise, accurate final answer.
+RULES:
+1. Always call search_knowledge first before answering questions about the knowledge base content.
+2. Base your answer strictly on retrieved KB content. Include source citations: [source: filename.ext] or [source: filename.pdf p.N] for PDFs.
+3. Be concise and actionable: steps, timelines, specific numbers.
+4. For calculator/math questions, use the calculator tool.
+5. ANTI-HALLUCINATION: If the retrieved content does NOT mention the specific topic asked about, do NOT apply generic policies to it. Say you could not find information about that specific topic and suggest escalation.
+6. If the KB content is directly relevant, answer confidently.
+
 If a critic message says REVISE, fix gaps and answer again.
-Keep final answers under 300 words unless asked for detail.
 """
 
-CRITIC_PROMPT = """You are a strict critic evaluating the last assistant answer.
+CRITIC_PROMPT = """You are a strict critic evaluating the last knowledge copilot answer.
 
 Score the answer on three dimensions (1-5 each):
-- grounded: Is it backed by evidence from tools or known facts?
-- complete: Does it fully address the user's question?
-- concise: Is it clear and free of unnecessary fluff?
+- grounded: Is it backed by the retrieved tool results? CRITICAL: Check if the tool result content ACTUALLY supports the claims made. If the answer makes claims not found in the retrieved content, that is HALLUCINATION and grounded=1.
+- complete: Does it fully address the user's question with actionable information?
+- concise: Is it clear, well-structured, and free of unnecessary fluff?
+
+Rules:
+- If tool results don't mention the specific topic in the question, the answer must say "not found" or "no specific information."
+- The answer must cite sources: [source: filename.ext] or [source: filename.pdf p.N].
+- If KB had no answer and the response didn't suggest where to get help, penalize completeness.
 
 Return ONLY a JSON object:
 {{"grounded": <1-5>, "complete": <1-5>, "concise": <1-5>, "overall": <1-5>, "feedback": "<one sentence with specific fix if overall < 4>"}}
@@ -169,11 +178,21 @@ def structured_critic(state: AgentflowState) -> dict:
     )
     user_question = (user_msg.content if user_msg else "") if user_msg else ""
 
+    # Collect tool results so the critic can check grounding
+    tool_results = []
+    for msg in messages:
+        if hasattr(msg, "type") and msg.type == "tool" and msg.name == "search_knowledge":
+            content = getattr(msg, "content", "") or ""
+            tool_results.append(content[:1500])
+
     # Call critic LLM
     critic_model = _get_critic_model()
+    critic_prompt = f"User question: {user_question}\n\nAssistant answer:\n{answer}"
+    if tool_results:
+        critic_prompt += "\n\nRetrieved KB content (check if it supports the answer):\n" + "\n---\n".join(tool_results)
     critic_input = [
         SystemMessage(content=CRITIC_PROMPT),
-        HumanMessage(content=f"User question: {user_question}\n\nAssistant answer:\n{answer}"),
+        HumanMessage(content=critic_prompt),
     ]
     response = critic_model.invoke(critic_input)
 

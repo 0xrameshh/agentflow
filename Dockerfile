@@ -15,10 +15,12 @@ RUN uv sync --no-dev --no-install-project
 COPY src/ src/
 COPY data/ data/
 COPY eval/ eval/
+COPY scripts/docker_entrypoint.sh /app/docker_entrypoint.sh
 
 # Install the project
 RUN uv sync --no-dev
+RUN chmod +x /app/docker_entrypoint.sh
 
-EXPOSE 8080
+EXPOSE 8081
 
-CMD ["uv", "run", "uvicorn", "agentflow.api.main:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["/app/docker_entrypoint.sh"]

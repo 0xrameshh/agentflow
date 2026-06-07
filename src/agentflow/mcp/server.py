@@ -25,10 +25,11 @@ mcp = FastMCP(
 
 @mcp.tool()
 def search_knowledge(query: str) -> str:
-    """Search local knowledge docs for information about agentflow, RAG, AI engineering, and software topics.
+    """Search the configured knowledge base for policies, documentation, manuals, and notes.
 
-    Returns document snippets with source citations in [source: filename.md] format.
-    Use this when you need facts from the project's knowledge base.
+    Supports multiple formats: Markdown (.md), text (.txt), and PDF (.pdf).
+    Returns document snippets with source citations: [source: filename.ext] or [source: filename.pdf p.N].
+    Use this when answering questions about the knowledge base.
     """
     from agentflow.rag.retriever import retrieve
 

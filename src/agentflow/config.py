@@ -12,7 +12,7 @@ DEFAULT_PROVIDER = os.getenv("AGENTFLOW_MODEL_PROVIDER", "openai")
 DEFAULT_MODEL = os.getenv("AGENTFLOW_MODEL_NAME", "gpt-4o-mini")
 SAMPLE_DOCS_DIR = os.getenv(
     "AGENTFLOW_DOCS_DIR",
-    os.path.join(os.path.dirname(__file__), "..", "..", "data", "sample"),
+    os.path.join(os.path.dirname(__file__), "..", "..", "data", "knowledge"),
 )
 
 

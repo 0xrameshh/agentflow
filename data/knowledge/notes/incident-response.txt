@@ -1,0 +1,29 @@
+Incident Response Runbook
+
+Severity Levels:
+- SEV1: Service outage affecting all users, data loss, security breach.
+  Response time: 15 minutes. Page entire engineering team.
+- SEV2: Feature outage affecting many users (no workaround).
+  Response time: 1 hour. Page primary on-call.
+- SEV3: Partial feature degradation (workaround available).
+  Response time: 4 hours. Standard ticket.
+- SEV4: Cosmetic issue, feature request.
+  Response time: next business day.
+
+Incident Commander (IC) Duties:
+1. Acknowledge the alert within 5 minutes.
+2. Declare severity and assemble response team in a dedicated Slack channel (#incident-xxx).
+3. Focus on mitigation, NOT root cause analysis during active incident.
+4. Communicate status updates every 30 minutes (SEV1/2) or every 2 hours (SEV3).
+5. When service is restored, declare "mitigated" and start post-mortem.
+
+Post-Mortem Requirements:
+- Timeline of events (detection, response, mitigation, resolution).
+- Root cause analysis (5 Whys method).
+- Action items with owners and deadlines.
+- Post-mortem review within 5 business days of incident end.
+
+Escalation Contacts:
+- Engineering Manager: eng-mgr@company.com
+- VP Engineering: vp-eng@company.com
+- CTO: cto@company.com (for SEV1 only)

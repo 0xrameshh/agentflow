@@ -7,7 +7,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-echo "=== Agentflow live LLM smoke test ==="
+echo "=== Knowledge Copilot — live LLM smoke test ==="
 echo ""
 
 if [ ! -f .env ]; then
@@ -39,13 +39,13 @@ print('✅ Test 1 passed')
 "
 
 echo ""
-echo "--- Test 2: Local knowledge (RAG-lite) ---"
+echo "--- Test 2: Knowledge base (expense policy) ---"
 uv run python -c "
 from agentflow.graph.builder import run_agent
-answer = run_agent('What is agentflow? Search local knowledge docs.')
+answer = run_agent('What is the meal expense limit per day? Search the KB.')
 print(answer)
 lower = answer.lower()
-assert 'agentflow' in lower or 'langgraph' in lower, f'Weak answer: {answer!r}'
+assert '75' in lower or 'meal' in lower, f'Weak answer: {answer!r}'
 print('✅ Test 2 passed')
 "
 
@@ -53,15 +53,15 @@ echo ""
 echo "--- Test 3: Supervisor graph ---"
 uv run python -c "
 from agentflow.graph.supervisor import run_supervisor
-answer = run_supervisor('In 3 bullets: what is LangGraph vs MCP?')
+answer = run_supervisor('What are the SEV1 incident response requirements?')
 print(answer)
 assert len(answer) > 100, f'Answer too short: {answer!r}'
 print('✅ Test 3 passed')
 "
 
 echo ""
-echo "--- Test 4: Eval suite (15 tasks) ---"
-uv run agentflow-eval 2>&1 | tee /tmp/agentflow-eval.log
+echo "--- Test 4: Domain-agnostic eval suite (13 tasks) ---"
+uv run agentflow-eval --tasks eval/tasks-knowledge.yaml 2>&1 | tee /tmp/agentflow-eval.log
 PASS_RATE=$(uv run python -c "
 import json, pathlib
 reports = sorted(pathlib.Path('eval/reports').glob('report-*.json'))
@@ -70,11 +70,11 @@ if not reports:
 data = json.loads(reports[-1].read_text())
 print(data['pass_rate'])
 ")
-echo "Pass rate: ${PASS_RATE}%"
-if python3 -c "exit(0 if float('${PASS_RATE}') >= 80 else 1)"; then
-  echo "✅ Test 4 passed (≥80%)"
+echo "Knowledge KB pass rate: ${PASS_RATE}%"
+if python3 -c "exit(0 if float('${PASS_RATE}') >= 85 else 1)"; then
+  echo "✅ Test 4 passed (≥85%)"
 else
-  echo "⚠️  Pass rate below 80% — tune prompts/tasks before shipping"
+  echo "⚠️  Knowledge KB pass rate below 85% — tune prompts/tasks before shipping"
   exit 1
 fi
 

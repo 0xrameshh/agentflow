@@ -1,8 +1,9 @@
-"""Document ingestion pipeline — chunk markdown files and store in Chroma.
+"""Document ingestion pipeline — load, chunk, and store in Chroma.
 
+Supports .md, .txt, .pdf files.
 Usage:
-    uv run python -m agentflow.rag.ingest data/sample
-    uv run python -m agentflow.rag.ingest data/sample --collection mydocs
+    uv run python -m agentflow.rag.ingest data/knowledge
+    uv run python -m agentflow.rag.ingest data/knowledge --collection mydocs --recursive
 
 Requires OPENAI_API_KEY for text-embedding-3-small (default embedding model).
 """
@@ -17,6 +18,7 @@ import chromadb
 from chromadb.config import Settings
 
 from agentflow.config import require_api_key  # loads .env via load_dotenv()
+from agentflow.rag.loaders import load_directory
 
 # ---------------------------------------------------------------------------
 # Config
@@ -85,23 +87,27 @@ def _chunk_text(text: str, chunk_size: int = CHUNK_SIZE, overlap: int = CHUNK_OV
     return [c.strip() for c in chunks if c.strip()]
 
 
-def _load_documents(root: str | Path) -> list[tuple[str, str]]:
-    """Load all .md files from a directory."""
-    root_path = Path(root)
-    if not root_path.exists():
-        return []
-    docs: list[tuple[str, str]] = []
-    for path in sorted(root_path.glob("*.md")):
-        content = path.read_text(encoding="utf-8")
-        if content.strip():
-            docs.append((path.name, content))
-    return docs
-
-
 def _doc_id(filename: str, chunk_idx: int) -> str:
     """Deterministic ID for a chunk: filename + index hash."""
     raw = f"{filename}::chunk::{chunk_idx}"
     return hashlib.sha256(raw.encode()).hexdigest()[:16]
+
+
+def _make_metadata(chunk: "LoadedChunk") -> dict:
+    """Build metadata dict from a loaded chunk."""
+    meta: dict = {
+        "source": chunk.source,
+        "file_type": chunk.file_type,
+        "chunk_index": 0,  # will be overwritten
+        "total_chunks": 1,
+    }
+    if chunk.page is not None:
+        meta["page"] = chunk.page
+    return meta
+
+
+# Import for type hint
+from agentflow.rag.loaders import LoadedChunk  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -113,10 +119,18 @@ def ingest_directory(
     directory: str | Path,
     collection_name: str = COLLECTION_NAME,
     chroma_dir: str = CHROMA_DIR,
+    recursive: bool = False,
 ) -> dict:
-    """Chunk markdown files and ingest into ChromaDB.
+    """Load documents, chunk text, and ingest into ChromaDB.
 
-    Returns stats: {docs, chunks, collection}.
+    Args:
+        directory: Path to directory containing .md, .txt, .pdf files.
+        collection_name: Chroma collection name.
+        chroma_dir: ChromaDB storage path.
+        recursive: If True, walk subdirectories.
+
+    Returns:
+        Stats: {docs, chunks, collection}.
     """
     client = chromadb.PersistentClient(
         path=chroma_dir,
@@ -139,28 +153,25 @@ def ingest_directory(
         embedding_function=ef,
     )
 
-    docs = _load_documents(directory)
-    if not docs:
+    loaded_chunks = load_directory(directory, recursive=recursive)
+    if not loaded_chunks:
         return {"docs": 0, "chunks": 0, "collection": collection_name}
 
     all_ids: list[str] = []
     all_docs: list[str] = []
     all_metas: list[dict] = []
 
-    for filename, content in docs:
-        chunks = _chunk_text(content)
+    for lc in loaded_chunks:
+        chunks = _chunk_text(lc.text)
         for idx, chunk in enumerate(chunks):
-            all_ids.append(_doc_id(filename, idx))
+            all_ids.append(_doc_id(lc.source, idx))
             all_docs.append(chunk)
-            all_metas.append(
-                {
-                    "source": filename,
-                    "chunk_index": idx,
-                    "total_chunks": len(chunks),
-                }
-            )
+            meta = _make_metadata(lc)
+            meta["chunk_index"] = idx
+            meta["total_chunks"] = len(chunks)
+            all_metas.append(meta)
 
-    # Batch add (ChromaDB handles batching internally)
+    # Batch add
     collection.add(
         ids=all_ids,
         documents=all_docs,
@@ -168,7 +179,7 @@ def ingest_directory(
     )
 
     return {
-        "docs": len(docs),
+        "docs": len(loaded_chunks),
         "chunks": len(all_ids),
         "collection": collection_name,
     }
@@ -184,14 +195,19 @@ def main():
 
     require_api_key()
 
-    parser = argparse.ArgumentParser(description="Ingest markdown docs into ChromaDB")
-    parser.add_argument("directory", help="Directory containing .md files")
+    parser = argparse.ArgumentParser(description="Ingest documents into ChromaDB")
+    parser.add_argument("directory", help="Directory containing .md, .txt, .pdf files")
     parser.add_argument("--collection", default=COLLECTION_NAME, help="Collection name")
     parser.add_argument("--chroma-dir", default=CHROMA_DIR, help="ChromaDB storage path")
+    parser.add_argument(
+        "--recursive",
+        action="store_true",
+        help="Walk subdirectories recursively",
+    )
     args = parser.parse_args()
 
-    stats = ingest_directory(args.directory, args.collection, args.chroma_dir)
-    print(f"Ingested {stats['docs']} docs → {stats['chunks']} chunks into '{stats['collection']}'")
+    stats = ingest_directory(args.directory, args.collection, args.chroma_dir, recursive=args.recursive)
+    print(f"Ingested {stats['docs']} documents → {stats['chunks']} chunks into '{stats['collection']}'")
 
 
 if __name__ == "__main__":

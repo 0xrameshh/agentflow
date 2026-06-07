@@ -79,13 +79,14 @@ class TestWebSearch:
 
 
 class TestKnowledgeSearch:
-    def test_finds_agentflow_doc(self):
-        result = search_knowledge.invoke({"query": "What is agentflow?"})
-        assert "agentflow" in result.lower()
+    def test_finds_something_relevant(self):
+        """The search tool should return results for a valid query."""
+        result = search_knowledge.invoke({"query": "expense reimbursement policy"})
+        assert len(result) > 20
+        assert "No relevant" not in result or "[source:" in result
 
     def test_no_match_returns_suggestion(self):
         result = search_knowledge.invoke({"query": "quantum entanglement physics"})
-        # Should suggest available docs or return no matches
         assert isinstance(result, str) and len(result) > 0
 
 
