@@ -37,7 +37,7 @@ export default function WelcomePanel({
     <div className="rounded-2xl border border-slate-200/80 bg-white/90 dark:bg-slate-900/60 dark:border-slate-800 p-6 shadow-sm backdrop-blur-sm">
       <div className="mb-6">
         <p className="text-xs font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-400">
-          Enterprise document copilot
+          Enterprise document intelligence
         </p>
         <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900 dark:text-slate-50">
           Ask your document library

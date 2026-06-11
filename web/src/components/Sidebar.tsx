@@ -23,7 +23,7 @@ export default function Sidebar() {
           </div>
           <div>
             <p className="text-sm font-semibold tracking-tight">Agentflow</p>
-            <p className="text-xs text-slate-400">Document Copilot</p>
+            <p className="text-xs text-slate-400">Document Intelligence</p>
           </div>
         </div>
       </div>

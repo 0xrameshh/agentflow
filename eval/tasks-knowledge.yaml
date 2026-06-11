@@ -1,4 +1,4 @@
-# Knowledge Copilot — Domain-agnostic eval tasks
+# Document intelligence — domain-agnostic eval tasks
 # Tests the agent's ability to answer from mixed-format knowledge base
 # (.md, .txt, .pdf) with correct citations.
 

@@ -1,4 +1,4 @@
-"""Tests for the support KB copilot API endpoints.
+"""Tests for the document Q&A API endpoints.
 
 These tests use TestClient with FastAPI — no LLM calls.
 Tests cover citation extraction, response models, and endpoint structure.
@@ -125,7 +125,7 @@ class TestApiEndpoints:
         response = client.get("/")
         assert response.status_code == 200
         data = response.json()
-        assert "Document Copilot" in data["name"]
+        assert "Document Intelligence" in data["name"]
         assert "chat" in data
 
     def test_kb_articles_endpoint(self, client):

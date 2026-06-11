@@ -22,7 +22,7 @@ from agentflow.tools import ALL_TOOLS
 MAX_TOOL_ITERATIONS = 8
 MAX_REVISIONS = 3
 
-SYSTEM_PROMPT = """You are a knowledge copilot that answers questions based on an ingested document knowledge base. Users ask about policies, procedures, documentation, and other information stored in the KB.
+SYSTEM_PROMPT = """You are a document intelligence assistant that answers questions based on an ingested document knowledge base. Users ask about policies, procedures, documentation, and other information stored in the KB.
 
 RULES:
 1. Always call search_knowledge first before answering questions about the knowledge base content.
@@ -35,7 +35,7 @@ RULES:
 If a critic message says REVISE, fix gaps and answer again.
 """
 
-CRITIC_PROMPT = """You are a strict critic evaluating the last knowledge copilot answer.
+CRITIC_PROMPT = """You are a strict critic evaluating the last document assistant answer.
 
 Score the answer on three dimensions (1-5 each):
 - grounded: Is it backed by the retrieved tool results? CRITICAL: Check if the tool result content ACTUALLY supports the claims made. If the answer makes claims not found in the retrieved content, that is HALLUCINATION and grounded=1.

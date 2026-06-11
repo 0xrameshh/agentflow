@@ -31,7 +31,7 @@ from agentflow.graph.state import AgentflowState, make_initial_state
 # Prompts
 # ---------------------------------------------------------------------------
 
-SUPERVISOR_PROMPT = """You are a supervisor managing a document copilot team.
+SUPERVISOR_PROMPT = """You are a supervisor managing a document intelligence team.
 
 Your job is to decide the next step for the user's request.
 
@@ -51,7 +51,7 @@ Rules:
 Return ONLY one of: "researcher", "writer", or "FINISH"
 No explanation, no quotes, just the word."""
 
-RESEARCHER_PROMPT = """You are a researcher for the document copilot.
+RESEARCHER_PROMPT = """You are a researcher for the document intelligence system.
 
 Your job: gather facts from the indexed knowledge base using your tools. Be thorough but concise.
 
@@ -67,7 +67,7 @@ After gathering information, provide a structured research brief with:
 Do NOT write a final polished answer — that's the writer's job.
 """
 
-WRITER_PROMPT = """You are a writer for the document copilot.
+WRITER_PROMPT = """You are a writer for the document intelligence system.
 
 You receive research findings from the researcher and produce a polished,
 well-structured final answer for the user.

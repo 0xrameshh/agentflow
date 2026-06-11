@@ -39,7 +39,7 @@ export default function MobileInfoSheet() {
             <div className="flex items-center justify-between gap-3 mb-4">
               <div>
                 <p className="text-sm font-semibold">Agentflow</p>
-                <p className="text-xs text-slate-400">Document Copilot</p>
+                <p className="text-xs text-slate-400">Document Intelligence</p>
               </div>
               <StatusBadge online={online} />
             </div>

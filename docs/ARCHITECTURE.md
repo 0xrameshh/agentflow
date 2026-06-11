@@ -1,6 +1,6 @@
 # Architecture
 
-## Product: Enterprise Document Copilot
+## Product: Document Intelligence Platform
 
 **Agentflow** is an industry-agnostic document Q&A system. Users point at a folder of files (Markdown, PDF, text); the system ingests, indexes, and answers with cited sources.
 
@@ -115,7 +115,7 @@ Target: ≥ 85% pass rate with `gpt-4o-mini`.
 |----------|-------------|
 | `GET /` | API info JSON (UI is Next.js at `:3000`) |
 | `GET /health` | Liveness |
-| `POST /run/support` | Knowledge copilot — answer + citations |
+| `POST /run/support` | Document Q&A — answer + citations |
 | `POST /run`, `/run/full`, `/run/stream` | Agent runs |
 | `POST /run/supervisor` | Multi-agent graph |
 | `GET /kb/articles` | List indexed documents |

@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Agentflow — Enterprise Document Copilot",
+  title: "Agentflow — Document Intelligence Platform",
   description:
     "LangGraph-powered document Q&A with cited sources, critic verification, and multi-format RAG.",
 };

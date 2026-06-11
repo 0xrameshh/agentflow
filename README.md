@@ -1,4 +1,4 @@
-# Agentflow — Enterprise Document Copilot
+# Agentflow — Document Intelligence Platform
 
 Production-style **document Q&A platform** for internal policies, runbooks, and onboarding material. Ingest PDF/Markdown/text into Chroma, answer through a **LangGraph agent with critic verification**, return **cited responses** via FastAPI + Next.js.
 

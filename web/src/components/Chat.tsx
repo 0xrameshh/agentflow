@@ -207,6 +207,16 @@ function ChatView() {
             <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-2 text-center">
               Grounded in indexed documents · verify critical decisions against originals
             </p>
+            <p className="text-[10px] text-slate-400/80 dark:text-slate-600 mt-1 text-center">
+              <a
+                href="https://github.com/0xrameshh/agentflow"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors"
+              >
+                Agentflow · Document Intelligence Platform
+              </a>
+            </p>
           </div>
         </div>
       </div>

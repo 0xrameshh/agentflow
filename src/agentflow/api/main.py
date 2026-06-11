@@ -1,4 +1,4 @@
-"""Agentflow FastAPI application — Enterprise Document Copilot.
+"""Agentflow FastAPI application — Document Intelligence Platform.
 
 Ingests documents (Markdown, PDF, TXT), answers questions with cited sources.
 
@@ -6,8 +6,8 @@ Endpoints:
 - GET /health — liveness check
 - POST /run — single agent run (returns answer)
 - POST /run/full — single agent run (returns answer + metadata)
-- POST /run/support — KB copilot (returns answer + citations)
-- POST /run/support/stream — KB copilot SSE stream (chunks + citations)
+- POST /run/support — document Q&A (returns answer + citations)
+- POST /run/support/stream — document Q&A SSE stream (chunks + citations)
 - POST /run/supervisor — multi-agent supervisor run
 - POST /eval — run full eval suite and return report
 - GET /threads/{thread_id}/history — return message history
@@ -35,7 +35,7 @@ from agentflow.graph.supervisor import run_supervisor_with_state
 from agentflow.graph.tracing import write_trace
 
 app = FastAPI(
-    title="Agentflow — Enterprise Document Copilot",
+    title="Agentflow — Document Intelligence Platform",
     description="Document Q&A with cited sources. Ingest markdown, PDFs, and text; get cited answers via LangGraph.",
     version="0.2.0",
 )
@@ -58,7 +58,7 @@ app.add_middleware(
 def root() -> dict:
     """API root — chat UI lives in Next.js (web/)."""
     return {
-        "name": "Agentflow — Enterprise Document Copilot",
+        "name": "Agentflow — Document Intelligence Platform",
         "version": "0.2.0",
         "ui": "Run the Next.js app: cd web && bun dev → http://localhost:3000",
         "health": "/health",
@@ -237,7 +237,7 @@ def _format_sse(payload: dict) -> str:
 
 
 def _execute_support_run(message: str, thread_id: str) -> tuple[dict, str, list[Citation], int]:
-    """Run the knowledge copilot graph and persist trace/history."""
+    """Run the document Q&A graph and persist trace/history."""
     started = time.perf_counter()
     require_api_key()
     state = run_agent_with_state(message, thread_id=thread_id)
@@ -354,7 +354,7 @@ async def run_stream(request: RunRequest):
 
 @app.post("/run/support", response_model=SupportRunResponse)
 def run_support(request: RunRequest) -> SupportRunResponse:
-    """Run the knowledge copilot and return the answer with citations."""
+    """Run document Q&A and return the answer with citations."""
     _check_rate_limit()
     try:
         state, answer, citations, latency_ms = _execute_support_run(
@@ -375,7 +375,7 @@ def run_support(request: RunRequest) -> SupportRunResponse:
 
 @app.post("/run/support/stream")
 async def run_support_stream(request: RunRequest):
-    """SSE stream for the knowledge copilot.
+    """SSE stream for document Q&A.
 
     Events (JSON in ``data:`` lines):
     - ``{"type":"status","phase":"searching"}`` — agent is running
