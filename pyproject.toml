@@ -1,7 +1,7 @@
 [project]
 name = "agentflow"
-version = "0.1.0"
-description = "LangGraph agent runtime with tools and regression eval harness"
+version = "0.2.0"
+description = "LangGraph document copilot with RAG, cited answers, critic loop, and eval harness"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [

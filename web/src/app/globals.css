@@ -9,7 +9,7 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0f172a;
+    --background: #020617;
     --foreground: #f1f5f9;
   }
 }
@@ -17,10 +17,9 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+  font-family: var(--font-geist-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
 }
 
-/* Scrollbar styling */
 ::-webkit-scrollbar {
   width: 6px;
 }
@@ -31,11 +30,12 @@ body {
   background: #cbd5e1;
   border-radius: 3px;
 }
-.dark ::-webkit-scrollbar-thumb {
-  background: #475569;
+@media (prefers-color-scheme: dark) {
+  ::-webkit-scrollbar-thumb {
+    background: #334155;
+  }
 }
 
-/* Prose overrides for markdown in bubbles */
 .prose {
-  line-height: 1.6;
+  line-height: 1.65;
 }

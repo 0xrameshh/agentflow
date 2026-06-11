@@ -24,6 +24,13 @@ export interface KbArticlesResponse {
   count: number;
 }
 
+export interface HealthResponse {
+  status: string;
+  service?: string;
+  version?: string;
+  kb_documents?: number;
+}
+
 export type StreamEvent =
   | { type: "status"; phase: string }
   | { type: "chunk"; text: string }
@@ -130,10 +137,18 @@ export async function getKbArticles(): Promise<KbArticlesResponse> {
   return response.json();
 }
 
+export async function getHealth(): Promise<HealthResponse> {
+  const response = await fetch(`${API_URL}/health`);
+  if (!response.ok) {
+    throw new Error(`Health check failed (${response.status})`);
+  }
+  return response.json();
+}
+
 export async function healthCheck(): Promise<boolean> {
   try {
-    const response = await fetch(`${API_URL}/health`);
-    return response.ok;
+    const data = await getHealth();
+    return data.status === "ok";
   } catch {
     return false;
   }

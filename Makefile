@@ -1,13 +1,16 @@
-.PHONY: install dev eval api ingest web web-dev lint test
+.PHONY: install dev eval api ingest web web-dev lint test ci eval-knowledge web-build
 
 install:
-	uv sync
+	uv sync --extra dev
 
 dev: install
 	uv run agentflow-api
 
 eval:
 	uv run agentflow-eval
+
+eval-knowledge:
+	uv run agentflow-eval --tasks eval/tasks-knowledge.yaml
 
 api:
 	uv run agentflow-api
@@ -27,3 +30,5 @@ lint:
 
 test:
 	uv run pytest tests/ -q
+
+ci: lint test web-build

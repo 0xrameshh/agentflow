@@ -1,4 +1,4 @@
-"""Agentflow FastAPI application — Knowledge Copilot.
+"""Agentflow FastAPI application — Enterprise Document Copilot.
 
 Ingests documents (Markdown, PDF, TXT), answers questions with cited sources.
 
@@ -35,7 +35,7 @@ from agentflow.graph.supervisor import run_supervisor_with_state
 from agentflow.graph.tracing import write_trace
 
 app = FastAPI(
-    title="Agentflow — Knowledge Copilot",
+    title="Agentflow — Enterprise Document Copilot",
     description="Document Q&A with cited sources. Ingest markdown, PDFs, and text; get cited answers via LangGraph.",
     version="0.2.0",
 )
@@ -58,7 +58,7 @@ app.add_middleware(
 def root() -> dict:
     """API root — chat UI lives in Next.js (web/)."""
     return {
-        "name": "Agentflow — Knowledge Copilot",
+        "name": "Agentflow — Enterprise Document Copilot",
         "version": "0.2.0",
         "ui": "Run the Next.js app: cd web && bun dev → http://localhost:3000",
         "health": "/health",
@@ -258,8 +258,24 @@ def _execute_support_run(message: str, thread_id: str) -> tuple[dict, str, list[
 
 
 @app.get("/health")
-def health() -> dict[str, str]:
-    return {"status": "ok"}
+def health() -> dict[str, str | int]:
+    from agentflow.config import SAMPLE_DOCS_DIR
+
+    kb_dir = Path(SAMPLE_DOCS_DIR)
+    kb_count = 0
+    if kb_dir.exists():
+        kb_count = sum(
+            1
+            for path in kb_dir.rglob("*")
+            if path.is_file() and path.suffix.lower() in (".md", ".txt", ".pdf")
+        )
+
+    return {
+        "status": "ok",
+        "service": "agentflow-api",
+        "version": "0.2.0",
+        "kb_documents": kb_count,
+    }
 
 
 @app.post("/run", response_model=RunResponse)

@@ -1,84 +1,70 @@
-# Agentflow — Knowledge Copilot
+# Agentflow — Enterprise Document Copilot
 
-Document Q&A over a local folder of PDFs, markdown, and text. Ingest into Chroma, ask questions through a LangGraph agent, get answers with source citations. Next.js chat UI on the front, FastAPI + eval harness on the back.
+Production-style **document Q&A platform** for internal policies, runbooks, and onboarding material. Ingest PDF/Markdown/text into Chroma, answer through a **LangGraph agent with critic verification**, return **cited responses** via FastAPI + Next.js.
 
-## Features
+Built for teams that need auditable answers — not a ChatGPT wrapper.
 
-- **Multi-format RAG** — ingest `.md`, `.txt`, `.pdf` into Chroma (keyword fallback)
-- **LangGraph agent** — research loop with structured critic that enforces KB grounding
-- **Cited answers** — `answer` + `citations[{source, snippet, file_type, page}]`
-- **Next.js chat UI** — `web/` app with **SSE streaming** responses (TypeScript, Tailwind)
-- **Eval harness** — YAML regression suites with pass rate and latency metrics
-- **FastAPI backend** — `/run/support`, streaming, supervisor graph, MCP server
+## Why this exists
+
+Generic chatbots hallucinate on company policy. Agentflow enforces a **retrieve → reason → verify → cite** pipeline so answers stay tied to your document library.
+
+| Capability | Implementation |
+|------------|----------------|
+| Multi-format ingest | `.md`, `.txt`, `.pdf` → Chroma (+ keyword fallback) |
+| Agent orchestration | LangGraph loop with tool calls |
+| Quality gate | Structured critic re-scores drafts (score ≥ 4 to ship) |
+| Audit trail | Citations: source, snippet, file type, page |
+| Regression testing | YAML eval suites, pass-rate + latency metrics |
+| Streaming UX | SSE chat UI (Next.js) |
+
+## Benchmarks (knowledge eval suite)
+
+| Metric | Result |
+|--------|--------|
+| Tasks | 12 domain-agnostic Q&A cases |
+| Pass rate | **92%** (`eval/tasks-knowledge.yaml`) |
+| Formats covered | Markdown policies, TXT runbooks, PDF manuals |
+| Unit tests | **49** pytest (graph, RAG, API, supervisor) |
+
+```bash
+uv run agentflow-eval --tasks eval/tasks-knowledge.yaml
+```
 
 ## Quick start
 
 ```bash
 cd agentflow
-cp .env.example .env
-# Set OPENAI_API_KEY
+cp .env.example .env   # OPENAI_API_KEY required
 
 uv sync --extra dev
 uv run agentflow-ingest data/knowledge --recursive
 ```
 
-### Run API + web UI
+### API + web UI
 
 ```bash
-# Terminal 1 — API (default port 8081)
+# Terminal 1 — API (:8081)
 uv run agentflow-api
 
-# Terminal 2 — Next.js
-cd web
-cp .env.local.example .env.local
-bun install
-bun dev
-# Open http://localhost:3000
+# Terminal 2 — Next.js (:3000)
+cd web && cp .env.local.example .env.local && bun install && bun dev
 ```
 
-Or use Make:
+Or:
 
 ```bash
-make ingest
-make api      # terminal 1
-make web      # terminal 2
+make ingest && make api   # terminal 1
+make web                # terminal 2
 ```
 
-## Ingest documents
-
-```bash
-# Primary knowledge base (md, txt, pdf — recursive)
-uv run agentflow-ingest data/knowledge --recursive
-
-# Example support-SaaS tenant (markdown only)
-uv run agentflow-ingest data/tenants/support-saas --recursive
-```
-
-## Eval suites
-
-```bash
-# Domain-agnostic knowledge tasks (target ≥ 85%)
-uv run agentflow-eval --tasks eval/tasks-knowledge.yaml
-
-# Support SaaS tenant evals
-uv run agentflow-eval --tasks eval/tasks-support-kb.yaml
-```
-
-## API examples
+## API
 
 ```bash
 curl -s http://localhost:8081/health
 
-curl -s http://localhost:8081/run/support \
-  -H 'Content-Type: application/json' \
-  -d '{"message":"What is the meal expense limit per day?"}'
-
-# Streaming (SSE) — same copilot, chunked response + citations in final event
 curl -N http://localhost:8081/run/support/stream \
   -H 'Content-Type: application/json' \
   -d '{"message":"What is the meal expense limit per day?"}'
-
-curl -s http://localhost:8081/kb/articles
 ```
 
 ## System design
@@ -86,78 +72,40 @@ curl -s http://localhost:8081/kb/articles
 ```mermaid
 flowchart TB
     subgraph client ["Client"]
-        UI["Next.js chat UI<br/>web/ :3000"]
+        UI["Next.js chat UI<br/>sidebar + cited stream"]
     end
 
     subgraph api ["API layer"]
         FastAPI["FastAPI :8081"]
-        Stream["POST /run/support/stream<br/>SSE"]
-        Support["POST /run/support"]
+        Stream["POST /run/support/stream · SSE"]
     end
 
     subgraph agent ["LangGraph agent"]
-        Init["init_run"]
-        LLM["agent node"]
-        Tools["run_tools"]
-        Critic["structured_critic"]
-        Init --> LLM
-        LLM -->|tool calls| Tools --> LLM
-        LLM -->|answer draft| Critic
-        Critic -->|score &lt; 4| LLM
-        Critic -->|score ≥ 4| Done["final answer"]
+        Init["init_run"] --> LLM["agent node"]
+        LLM -->|tools| Tools["run_tools"] --> LLM
+        LLM --> Critic["structured_critic"]
+        Critic -->|score < 4| LLM
+        Critic -->|score ≥ 4| Done["answer + citations"]
     end
 
     subgraph rag ["RAG"]
-        Ingest["agentflow-ingest<br/>.md .txt .pdf"]
-        Chroma[("ChromaDB<br/>.chroma/")]
-        Search["search_knowledge"]
-        Ingest --> Chroma
-        Search --> Chroma
+        Ingest["agentflow-ingest"] --> Chroma[("ChromaDB")]
+        Tools --> Search["search_knowledge"] --> Chroma
     end
 
     subgraph eval ["Quality"]
-        YAML["eval/tasks-*.yaml"]
-        Runner["agentflow-eval"]
-        YAML --> Runner
-        Runner --> agent
+        YAML["eval/tasks-*.yaml"] --> Runner["agentflow-eval"]
     end
 
-    UI -->|fetch SSE| Stream
-    UI -->|optional JSON| Support
-    Stream --> FastAPI
-    Support --> FastAPI
-    FastAPI --> Init
-    Tools --> Search
-    Done -->|answer + citations| FastAPI
-    FastAPI -->|chunks + done event| UI
-```
-
-### Research graph (detail)
-
-```mermaid
-flowchart LR
-    Start --> InitRun["init_run"]
-    InitRun --> Agent
-    Agent -->|tool calls| Tools["run_tools"]
-    Agent -->|draft| Critic["structured_critic"]
-    Tools --> Agent
-    Critic -->|score < 4| Agent
-    Critic -->|score ≥ 4| End
+    UI --> Stream --> FastAPI --> Init
+    Runner --> agent
 ```
 
 More: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · [docs/RAG.md](docs/RAG.md)
 
 ## Sample knowledge base
 
-`data/knowledge/` — mixed formats for demos:
-
-| Path | Format | Topics |
-|------|--------|--------|
-| `policies/expense-policy.md` | Markdown | Meal limits, submission deadlines |
-| `policies/remote-work.md` | Markdown | Remote work eligibility |
-| `notes/incident-response.txt` | Text | SEV1 response times |
-| `notes/product-launch-checklist.txt` | Text | Launch windows |
-| `manuals/onboarding-manual.pdf` | PDF | Laptop refresh cycle, onboarding |
+`data/knowledge/` — expense policies, incident runbooks, onboarding PDFs (demo corpus for evals).
 
 ## Stack
 
@@ -166,15 +114,16 @@ Python · LangGraph · LangChain · ChromaDB · FastAPI · Next.js · TypeScript
 ## Development
 
 ```bash
-uv run pytest tests/
-uv run ruff check src/ tests/
-cd web && bun run lint && bun run build
+make test      # pytest (49 tests)
+make lint      # ruff + eslint
+make web-build # Next.js production build
+make eval-knowledge
 ```
 
 ## Deployment
 
-- **API:** Docker / Railway / Fly (`Dockerfile`, `docker-compose.yml`)
-- **Web:** Vercel — set `NEXT_PUBLIC_API_URL` to your API URL
+- **API:** `docker compose up` (port 8081, auto-ingest on start)
+- **Web:** Vercel — set `NEXT_PUBLIC_API_URL`
 
 ## License
 

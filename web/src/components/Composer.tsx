@@ -39,16 +39,16 @@ export default function Composer({ onSend, disabled }: ComposerProps) {
         value={input}
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={handleKeyDown}
-        placeholder="Ask a question about the knowledge base..."
+        placeholder="Ask about policies, runbooks, or onboarding docs…"
         rows={1}
         disabled={disabled}
-        className="flex-1 resize-none rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 dark:text-gray-100"
+        className="flex-1 resize-none rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 disabled:opacity-50 dark:text-slate-100"
         style={{ minHeight: "44px", maxHeight: "120px" }}
       />
       <button
         type="submit"
         disabled={disabled || !input.trim()}
-        className="px-5 py-3 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        className="px-5 py-3 rounded-xl bg-slate-900 dark:bg-cyan-600 text-white text-sm font-medium hover:bg-slate-800 dark:hover:bg-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
       >
         {disabled ? (
           <span className="flex items-center gap-1.5">

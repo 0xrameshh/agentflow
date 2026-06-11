@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Agentflow — Knowledge Copilot",
+  title: "Agentflow — Enterprise Document Copilot",
   description:
-    "Document Q&A with cited sources. Ingest markdown, PDFs, and text files — get cited answers.",
+    "LangGraph-powered document Q&A with cited sources, critic verification, and multi-format RAG.",
 };
 
 export default function RootLayout({

@@ -125,7 +125,7 @@ class TestApiEndpoints:
         response = client.get("/")
         assert response.status_code == 200
         data = response.json()
-        assert "Knowledge Copilot" in data["name"]
+        assert "Document Copilot" in data["name"]
         assert "chat" in data
 
     def test_kb_articles_endpoint(self, client):

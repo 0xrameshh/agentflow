@@ -21,33 +21,31 @@ export default function MessageBubble({
 
   return (
     <div className={`flex gap-3 items-start ${isUser ? "flex-row-reverse" : ""}`}>
-      {/* Avatar */}
       <div
-        className={`w-8 h-8 rounded-full flex items-center justify-center text-sm flex-shrink-0 ${
+        className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-semibold flex-shrink-0 ${
           isUser
-            ? "bg-blue-600 text-white"
-            : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
+            ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900"
+            : "bg-gradient-to-br from-cyan-500 to-blue-600 text-white shadow-sm"
         }`}
       >
-        {isUser ? "U" : "🤖"}
+        {isUser ? "You" : "AF"}
       </div>
 
-      {/* Bubble */}
       <div
-        className={`max-w-[80%] px-4 py-2.5 rounded-2xl leading-relaxed text-sm ${
+        className={`max-w-[85%] px-4 py-3 rounded-2xl leading-relaxed text-sm shadow-sm ${
           isUser
-            ? "bg-blue-600 text-white rounded-tr-sm"
-            : "bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 rounded-tl-sm"
+            ? "bg-slate-900 text-white rounded-tr-md dark:bg-slate-100 dark:text-slate-900"
+            : "bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-200/80 dark:border-slate-800 rounded-tl-md"
         }`}
       >
-        <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-ul:my-1 prose-li:my-0.5 prose-code:px-1 prose-code:py-0.5 prose-code:bg-gray-100 dark:prose-code:bg-gray-700 prose-code:rounded prose-code:text-xs">
+        <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-ul:my-1 prose-li:my-0.5 prose-code:px-1 prose-code:py-0.5 prose-code:bg-slate-100 dark:prose-code:bg-slate-800 prose-code:rounded prose-code:text-xs">
           {content ? (
             <ReactMarkdown>{content}</ReactMarkdown>
           ) : streaming ? (
-            <span className="text-gray-400">…</span>
+            <span className="text-slate-400">Generating answer…</span>
           ) : null}
           {streaming && content && (
-            <span className="inline-block w-2 h-4 ml-0.5 bg-blue-500 animate-pulse align-middle" />
+            <span className="inline-block w-2 h-4 ml-0.5 bg-cyan-500 animate-pulse align-middle rounded-sm" />
           )}
         </div>
 
