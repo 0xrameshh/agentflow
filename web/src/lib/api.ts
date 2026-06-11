@@ -1,4 +1,4 @@
-// API client for the Knowledge Copilot backend
+// API client for Agentflow backend
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8081";
 

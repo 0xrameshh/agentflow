@@ -31,18 +31,18 @@ from agentflow.graph.state import AgentflowState, make_initial_state
 # Prompts
 # ---------------------------------------------------------------------------
 
-SUPERVISOR_PROMPT = """You are a supervisor managing a support copilot team.
+SUPERVISOR_PROMPT = """You are a supervisor managing a document copilot team.
 
-Your job is to decide the next step for the support agent's request.
+Your job is to decide the next step for the user's request.
 
 Available workers:
-- "researcher": Has access to tools (search_knowledge for FlowDesk KB, calculator).
-  Use this when the question needs policy lookups, troubleshooting steps, or fact-finding.
+- "researcher": Has access to tools (search_knowledge for the indexed document library, calculator).
+  Use this when the question needs policy lookups, runbook steps, or fact-finding.
 - "writer": No tools. Synthesizes a final polished answer from research findings.
 - "FINISH": The task is complete. Use this when the writer has already produced a final answer.
 
 Rules:
-1. Start with "researcher" for any question that needs policy or troubleshooting info.
+1. Start with "researcher" for any question that needs document or policy info.
 2. After researcher provides findings, route to "writer".
 3. After writer produces the answer, respond with "FINISH".
 4. Maximum 2 researcher rounds before routing to writer.
@@ -51,12 +51,12 @@ Rules:
 Return ONLY one of: "researcher", "writer", or "FINISH"
 No explanation, no quotes, just the word."""
 
-RESEARCHER_PROMPT = """You are a researcher for the FlowDesk support copilot.
+RESEARCHER_PROMPT = """You are a researcher for the document copilot.
 
-Your job: gather facts from the FlowDesk knowledge base using your tools. Be thorough but concise.
+Your job: gather facts from the indexed knowledge base using your tools. Be thorough but concise.
 
 Tools available:
-- search_knowledge: Search FlowDesk support KB (billing, refunds, login, etc.)
+- search_knowledge: Search policies, runbooks, manuals, and notes in the KB
 - calculator: Do math calculations
 
 After gathering information, provide a structured research brief with:
@@ -67,10 +67,10 @@ After gathering information, provide a structured research brief with:
 Do NOT write a final polished answer — that's the writer's job.
 """
 
-WRITER_PROMPT = """You are a writer for the FlowDesk support copilot.
+WRITER_PROMPT = """You are a writer for the document copilot.
 
 You receive research findings from the researcher and produce a polished,
-well-structured final answer for the support agent.
+well-structured final answer for the user.
 
 Rules:
 1. Synthesize the research into a clear, actionable response.

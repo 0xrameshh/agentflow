@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { getHealth, type HealthResponse } from "@/lib/api";
+import { useApp } from "@/context/AppContext";
+import StatusBadge from "./StatusBadge";
 
 const PIPELINE = [
   { step: "Ingest", detail: "PDF · MD · TXT → Chroma" },
@@ -12,23 +12,10 @@ const PIPELINE = [
 ];
 
 export default function Sidebar() {
-  const [health, setHealth] = useState<HealthResponse | null>(null);
-  const [online, setOnline] = useState(false);
-
-  useEffect(() => {
-    getHealth()
-      .then((data) => {
-        setHealth(data);
-        setOnline(data.status === "ok");
-      })
-      .catch(() => {
-        setHealth(null);
-        setOnline(false);
-      });
-  }, []);
+  const { health, online, kbCount, kbArticles } = useApp();
 
   return (
-    <aside className="hidden lg:flex w-72 flex-col border-r border-slate-200/80 bg-slate-950 text-slate-100">
+    <aside className="hidden lg:flex w-72 flex-col border-r border-slate-800/80 bg-slate-950 text-slate-100">
       <div className="px-5 py-6 border-b border-slate-800">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-400 to-blue-600 text-sm font-bold text-white shadow-lg shadow-cyan-500/20">
@@ -46,28 +33,42 @@ export default function Sidebar() {
           <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-3">
             System status
           </h2>
-          <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3 space-y-2">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-slate-400">API</span>
-              <span className={`inline-flex items-center gap-1.5 ${online ? "text-emerald-400" : "text-amber-400"}`}>
-                <span className={`h-1.5 w-1.5 rounded-full ${online ? "bg-emerald-400" : "bg-amber-400 animate-pulse"}`} />
-                {online ? "Online" : "Offline"}
-              </span>
+          <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3 space-y-3">
+            <div className="flex items-center justify-between">
+              <StatusBadge online={online} />
+              <span className="text-[11px] font-mono text-cyan-300">92% eval</span>
             </div>
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-slate-400">Indexed docs</span>
-              <span className="font-mono text-slate-200">{health?.kb_documents ?? "—"}</span>
-            </div>
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-slate-400">Eval suite</span>
-              <span className="font-mono text-cyan-300">92% pass</span>
-            </div>
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-slate-400">Version</span>
-              <span className="font-mono text-slate-300">{health?.version ?? "0.2.0"}</span>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div>
+                <p className="text-slate-500">Indexed docs</p>
+                <p className="font-mono text-slate-200">{kbCount ?? "—"}</p>
+              </div>
+              <div>
+                <p className="text-slate-500">Version</p>
+                <p className="font-mono text-slate-300">{health?.version ?? "0.2.0"}</p>
+              </div>
             </div>
           </div>
         </section>
+
+        {kbArticles.length > 0 && (
+          <section>
+            <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-3">
+              Knowledge base
+            </h2>
+            <ul className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+              {kbArticles.slice(0, 8).map((name) => (
+                <li
+                  key={name}
+                  className="truncate rounded-md bg-slate-900/50 px-2 py-1 text-[11px] font-mono text-slate-400"
+                  title={name}
+                >
+                  {name}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         <section>
           <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-3">
@@ -86,18 +87,6 @@ export default function Sidebar() {
               </li>
             ))}
           </ol>
-        </section>
-
-        <section>
-          <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-3">
-            Built for
-          </h2>
-          <ul className="space-y-2 text-xs text-slate-400">
-            <li>Internal policy & compliance Q&A</li>
-            <li>Onboarding & ops runbooks</li>
-            <li>Multi-format document search</li>
-            <li>Auditable cited responses</li>
-          </ul>
         </section>
       </div>
 

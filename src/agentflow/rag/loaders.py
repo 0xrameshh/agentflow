@@ -1,4 +1,4 @@
-"""Multi-format document loaders for Knowledge Copilot.
+"""Multi-format document loaders for Agentflow RAG ingest.
 
 Supports: .md, .txt, .pdf
 """

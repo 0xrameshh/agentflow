@@ -1,10 +1,10 @@
 # Architecture
 
-## Product: Knowledge Copilot
+## Product: Enterprise Document Copilot
 
 **Agentflow** is an industry-agnostic document Q&A system. Users point at a folder of files (Markdown, PDF, text); the system ingests, indexes, and answers with cited sources.
 
-**Example tenant:** `data/tenants/support-saas/` — fictional FlowDesk support articles for SaaS support evals. The primary demo KB is `data/knowledge/` (mixed formats).
+**Example tenant:** `data/tenants/support-saas/` — sample SaaS support articles for tenant evals. The primary demo KB is `data/knowledge/` (mixed formats).
 
 **Flow:**
 1. User asks a question in the Next.js chat UI (`web/`, port 3000)

@@ -7,7 +7,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-echo "=== Knowledge Copilot — live LLM smoke test ==="
+echo "=== Agentflow — live LLM smoke test ==="
 echo ""
 
 if [ ! -f .env ]; then
