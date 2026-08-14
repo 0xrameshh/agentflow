@@ -1,61 +1,43 @@
-# Agentflow — Document Intelligence Platform
+# Agentflow
 
-Production-style **document Q&A platform** for internal policies, runbooks, and onboarding material. Ingest PDF/Markdown/text into Chroma, answer through a **LangGraph agent with critic verification**, return **cited responses** via FastAPI + Next.js.
+Document Q&A over a private knowledge base. Ingest Markdown, text, and PDF files into Chroma, ask questions through a LangGraph agent, and get answers with citations. The agent runs a critic step before answering: drafts below a quality score go back for another pass.
 
-Built for teams that need auditable answers — not a ChatGPT wrapper.
+CI: [![CI](https://github.com/0xrameshh/agentflow/actions/workflows/ci.yml/badge.svg)](https://github.com/0xrameshh/agentflow/actions/workflows/ci.yml)
 
-## Why this exists
+Engineering story: [CASE_STUDY.md](CASE_STUDY.md)
 
-Generic chatbots hallucinate on company policy. Agentflow enforces a **retrieve → reason → verify → cite** pipeline so answers stay tied to your document library.
+## What it does
 
-| Capability | Implementation |
-|------------|----------------|
-| Multi-format ingest | `.md`, `.txt`, `.pdf` → Chroma (+ keyword fallback) |
-| Agent orchestration | LangGraph loop with tool calls |
-| Quality gate | Structured critic re-scores drafts (score ≥ 4 to ship) |
-| Audit trail | Citations: source, snippet, file type, page |
-| Regression testing | YAML eval suites, pass-rate + latency metrics |
-| Streaming UX | SSE chat UI (Next.js) |
+- Ingest .md, .txt, .pdf into Chroma, with a keyword fallback that works without an API key
+- LangGraph loop: init_run, agent, run_tools, structured_critic
+- Every answer carries citations (source, page, chunk)
+- FastAPI backend with SSE streaming, Next.js chat UI
+- The same tools are exposed over MCP for Cursor and Claude Desktop (see [mcp/README.md](mcp/README.md))
+- YAML eval suites with pass rate and latency numbers
 
-## Benchmarks (knowledge eval suite)
+## Numbers
 
-| Metric | Result |
-|--------|--------|
-| Tasks | 12 domain-agnostic Q&A cases |
-| Pass rate | **92%** (`eval/tasks-knowledge.yaml`) |
-| Formats covered | Markdown policies, TXT runbooks, PDF manuals |
-| Unit tests | **49** pytest (graph, RAG, API, supervisor) |
-
-```bash
-uv run agentflow-eval --tasks eval/tasks-knowledge.yaml
-```
+- 49 pytest tests (graph, RAG, API, supervisor)
+- 92% pass rate on eval/tasks-knowledge.yaml (12 Q&A cases)
+- ruff clean, CI green
 
 ## Quick start
 
 ```bash
-cd agentflow
 cp .env.example .env   # OPENAI_API_KEY required
-
 uv sync --extra dev
 uv run agentflow-ingest data/knowledge --recursive
+uv run agentflow-eval --tasks eval/tasks-knowledge.yaml
 ```
 
-### API + web UI
+### API and web UI
 
 ```bash
-# Terminal 1 — API (:8081)
-uv run agentflow-api
-
-# Terminal 2 — Next.js (:3000)
-cd web && cp .env.local.example .env.local && bun install && bun dev
+uv run agentflow-api              # terminal 1, port 8081
+cd web && bun install && bun dev # terminal 2, port 3000
 ```
 
-Or:
-
-```bash
-make ingest && make api   # terminal 1
-make web                # terminal 2
-```
+Or use the Makefile: `make ingest && make api`, `make web`.
 
 ## API
 
@@ -85,7 +67,7 @@ flowchart TB
         LLM -->|tools| Tools["run_tools"] --> LLM
         LLM --> Critic["structured_critic"]
         Critic -->|score < 4| LLM
-        Critic -->|score ≥ 4| Done["answer + citations"]
+        Critic -->|score >= 4| Done["answer + citations"]
     end
 
     subgraph rag ["RAG"]
@@ -101,29 +83,34 @@ flowchart TB
     Runner --> agent
 ```
 
-More: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · [docs/RAG.md](docs/RAG.md)
+More: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/RAG.md](docs/RAG.md)
 
-## Sample knowledge base
+## Layout
 
-`data/knowledge/` — expense policies, incident runbooks, onboarding PDFs (demo corpus for evals).
-
-## Stack
-
-Python · LangGraph · LangChain · ChromaDB · FastAPI · Next.js · TypeScript · pypdf · uv · bun
+```text
+src/agentflow/tools/   tool implementations, shared by the agent and the MCP server
+src/agentflow/rag/     Chroma retriever + keyword fallback
+src/agentflow/graph/   LangGraph state machine
+src/agentflow/mcp/     MCP server wrapper
+src/agentflow/eval/    eval runner
+tests/                 pytest suite
+eval/                  YAML task suites
+data/knowledge/        sample corpus: expense policies, runbooks, onboarding PDFs
+```
 
 ## Development
 
 ```bash
-make test      # pytest (49 tests)
-make lint      # ruff + eslint
-make web-build # Next.js production build
+make test          # pytest (49 tests)
+make lint          # ruff + eslint
+make web-build     # Next.js production build
 make eval-knowledge
 ```
 
 ## Deployment
 
-- **API:** `docker compose up` (port 8081, auto-ingest on start)
-- **Web:** Vercel — set `NEXT_PUBLIC_API_URL`
+- API: docker compose up (port 8081, auto-ingest on start)
+- Web: Vercel, set NEXT_PUBLIC_API_URL
 
 ## License
 
