@@ -99,7 +99,7 @@ def query_keyword(query: str, docs_dir: str | Path | None = None) -> list[dict]:
     query_terms = {t.lower() for t in re.findall(r"\w+", query) if len(t) > 2}
     results: list[dict] = []
 
-    for path in sorted(docs_path.glob("*.md")):
+    for path in sorted([*docs_path.rglob("*.md"), *docs_path.rglob("*.txt")]):
         content = path.read_text(encoding="utf-8")
         content_lower = content.lower()
         doc_score = sum(1 for t in query_terms if t in content_lower)
