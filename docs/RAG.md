@@ -12,9 +12,9 @@ User Query → Retriever → Chroma (vector) or Keyword (fallback) → Ranked re
 
 | Extension | Loader | Notes |
 |-----------|--------|-------|
-| `.md` | `loaders._load_markdown` | Full file as one logical doc |
-| `.txt` | `loaders._load_text` | UTF-8 with error replacement |
-| `.pdf` | `loaders._load_pdf` | Per-page chunks via `pypdf`; `page` metadata for citations |
+| `.md` | `load_markdown` | Full file as one logical doc |
+| `.txt` | `load_text` | UTF-8 with error replacement |
+| `.pdf` | `load_pdf` | Per-page chunks via `pypdf`; `page` metadata for citations |
 
 Loader module: `src/agentflow/rag/loaders.py`
 
